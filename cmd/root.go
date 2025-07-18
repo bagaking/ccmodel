@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -48,57 +47,15 @@ func initConfig() {
 }
 
 func runRoot(cmd *cobra.Command, args []string) error {
-	if len(args) == 0 {
-		return listModels()
-	}
-	return switchModel(args[0])
-}
-
-func listModels() error {
-	models, err := getAvailableModels()
-	if err != nil {
-		return err
-	}
-	
-	current, _ := getCurrentModel()
-	
-	fmt.Println("Claude Code Model Switcher")
-	fmt.Println("==========================")
-	fmt.Println()
-	
-	if current == "" {
-		fmt.Println("❌ No configuration found")
-	} else if current == "custom" {
-		fmt.Println("⚙️  Current: Custom configuration")
-	} else {
-		fmt.Printf("✅ Current: %s\n", current)
-	}
-	fmt.Println()
-	
-	if len(models) == 0 {
-		fmt.Println("No configuration templates found")
-		fmt.Println()
-		fmt.Printf("Add new templates as %s/settings.{model}.json\n", configDir)
+	// Check if we're being called for completion - avoid UI output
+	if cmd.CalledAs() == "completion" || (len(os.Args) > 1 && os.Args[1] == "completion") {
 		return nil
 	}
 	
-	fmt.Println("Available models:")
-	for _, model := range models {
-		if model == current {
-			fmt.Printf("  * %s (active)\n", model)
-		} else {
-			fmt.Printf("  - %s\n", model)
-		}
+	if len(args) == 0 {
+		return runList(cmd, args)
 	}
-	
-	fmt.Println()
-	fmt.Println("Examples:")
-	fmt.Println("  ccmodel k2           # Switch to k2 configuration")
-	fmt.Println("  ccmodel openrouter   # Switch to OpenRouter configuration")
-	fmt.Println("  ccmodel list         # List all available models")
-	fmt.Println("  ccmodel current      # Show current model")
-	
-	return nil
+	return switchModel(args[0])
 }
 
 func getAvailableModels() ([]string, error) {
