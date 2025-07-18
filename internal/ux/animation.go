@@ -1,9 +1,9 @@
 package ux
 
-import (\t
+import (
 	"fmt"
-	"time"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/fatih/color"
@@ -11,14 +11,14 @@ import (\t
 
 // Animation styles for different operations
 var (
-	LoadingDots    = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
-	LoadingCircle  = []string{"◐", "◓", "◑", "◒"}
-	LoadingArrows  = []string{"←", "↖", "↑", "↗", "→", "↘", "↓", "↙"}
-	LoadingBounce  = []string{"⠁", "⠂", "⠄", "⠂"}
-	LoadingPulse   = []string{"▁", "▃", "▄", "▅", "▆", "▇", "█", "▇", "▆", "▅", "▄", "▃"}
-	LoadingBlocks  = []string{"▖", "▘", "▝", "▗"}
-	LoadingWaves   = []string{"▂", "▄", "▅", "▆", "▇", "▆", "▅", "▄"}
-	
+	LoadingDots   = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+	LoadingCircle = []string{"◐", "◓", "◑", "◒"}
+	LoadingArrows = []string{"←", "↖", "↑", "↗", "→", "↘", "↓", "↙"}
+	LoadingBounce = []string{"⠁", "⠂", "⠄", "⠂"}
+	LoadingPulse  = []string{"▁", "▃", "▄", "▅", "▆", "▇", "█", "▇", "▆", "▅", "▄", "▃"}
+	LoadingBlocks = []string{"▖", "▘", "▝", "▗"}
+	LoadingWaves  = []string{"▂", "▄", "▅", "▆", "▇", "▆", "▅", "▄"}
+
 	// Colors for different states
 	Cyan    = color.New(color.FgCyan)
 	Green   = color.New(color.FgGreen)
@@ -57,7 +57,7 @@ func NewSpinner(style string) *Spinner {
 	default:
 		frames = LoadingDots
 	}
-	
+
 	return &Spinner{
 		frames: frames,
 		color:  Cyan,
@@ -163,16 +163,16 @@ func (pb *ProgressBar) render() {
 	if pb.total == 0 {
 		return
 	}
-	
+
 	percentage := float64(pb.current) / float64(pb.total) * 100
 	filledWidth := int(float64(pb.width) * float64(pb.current) / float64(pb.total))
-	
+
 	bar := strings.Repeat("█", filledWidth) + strings.Repeat("░", pb.width-filledWidth)
-	
-	fmt.Printf("\r%s [%s] %.1f%% %s (%d/%d)", 
-		pb.prefix, 
-		Blue.Sprint(bar), 
-		percentage, 
+
+	fmt.Printf("\r%s [%s] %.1f%% %s (%d/%d)",
+		pb.prefix,
+		Blue.Sprint(bar),
+		percentage,
 		pb.suffix,
 		pb.current,
 		pb.total,
@@ -257,7 +257,7 @@ func RainbowText(text string) {
 		color.New(color.FgBlue),
 		color.New(color.FgMagenta),
 	}
-	
+
 	for i, char := range text {
 		if char != ' ' {
 			colors[i%len(colors)].Print(string(char))

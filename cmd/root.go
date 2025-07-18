@@ -38,6 +38,7 @@ func init() {
 	rootCmd.AddCommand(switchCmd)
 	rootCmd.AddCommand(backupCmd)
 	rootCmd.AddCommand(completionCmd)
+	rootCmd.AddCommand(demoCmd)
 }
 
 func initConfig() {
