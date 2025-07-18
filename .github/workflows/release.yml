@@ -1,0 +1,132 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+    
+    - name: Run tests
+      run: go test -v ./...
+    
+    - name: Run linter
+      uses: golangci/golangci-lint-action@v3
+      with:
+        version: latest
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+          - goos: windows
+            goarch: arm64
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+    
+    - name: Build binary
+      env:
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+      run: |
+        mkdir -p dist
+        BINARY_NAME=ccmodel
+        if [ "$GOOS" = "windows" ]; then
+          BINARY_NAME=ccmodel.exe
+        fi
+        go build -ldflags="-s -w -X main.Version=${{ github.ref_name }} -X main.Commit=${{ github.sha }} -X main.Date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o dist/${BINARY_NAME}-${GOOS}-${GOARCH}${{ matrix.goos == 'windows' && '.exe' || '' }} .
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: ccmodel-${{ matrix.goos }}-${{ matrix.goarch }}
+        path: dist/ccmodel-*
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download all artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: dist
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: dist/ccmodel-*/*
+        body: |
+          ## 🎉 New Release: ${{ github.ref_name }}
+          
+          ### ✨ What's New
+          
+          Check out the [changelog](CHANGELOG.md) for detailed information.
+          
+          ### 📥 Installation
+          
+          #### macOS
+          ```bash
+          # Intel
+          curl -L https://github.com/bagaking/ccmodel/releases/download/${{ github.ref_name }}/ccmodel-darwin-amd64 -o /usr/local/bin/ccmodel
+          
+          # Apple Silicon
+          curl -L https://github.com/bagaking/ccmodel/releases/download/${{ github.ref_name }}/ccmodel-darwin-arm64 -o /usr/local/bin/ccmodel
+          chmod +x /usr/local/bin/ccmodel
+          ```
+          
+          #### Linux
+          ```bash
+          # x86_64
+          curl -L https://github.com/bagaking/ccmodel/releases/download/${{ github.ref_name }}/ccmodel-linux-amd64 -o /usr/local/bin/ccmodel
+          
+          # ARM64
+          curl -L https://github.com/bagaking/ccmodel/releases/download/${{ github.ref_name }}/ccmodel-linux-arm64 -o /usr/local/bin/ccmodel
+          chmod +x /usr/local/bin/ccmodel
+          ```
+          
+          #### Windows
+          Download the `.exe` file from the assets below and add to your PATH.
+          
+          ### 🚀 Quick Start
+          
+          ```bash
+          ccmodel list    # List available models
+          ccmodel switch MODEL_NAME    # Switch to a model
+          ```
+        draft: false
+        prerelease: false
