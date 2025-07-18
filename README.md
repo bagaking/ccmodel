@@ -75,13 +75,22 @@ ccmodel backup       # Backup current configuration
 
 ```bash
 # bash
+# 推荐在 ~/.bashrc 末尾添加如下内容，并 source 使其生效
+
 echo 'eval "$(ccmodel completion bash)"' >> ~/.bashrc
+source ~/.bashrc
 
 # zsh
+# 推荐在 ~/.zshrc 末尾添加如下内容，并 source 使其生效
+# 你可以直接复制以下命令到终端：
+
 echo 'eval "$(ccmodel completion zsh)"' >> ~/.zshrc
+source ~/.zshrc
 
 # fish
-echo 'ccmodel completion fish | source' >> ~/.config/fish/config.fish
+# 推荐在 ~/.config/fish/config.fish 末尾添加如下内容
+
+ccmodel completion fish | source >> ~/.config/fish/config.fish
 ```
 
 ---

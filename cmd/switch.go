@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/bagaking/ccmodel/internal/ui"
-	"github.com/bagaking/ccmodel/internal/ux"
 	"github.com/spf13/cobra"
 )
 
@@ -50,17 +49,12 @@ func switchModel(model string) error {
 		}
 	}
 
-	// Use advanced loading animation
-	spinner := ux.NewSpinner("dots")
-	spinner.Start(fmt.Sprintf("Switching to %s configuration...", model))
-	
 	// Switch configuration
 	if err := copyFile(sourceFile, targetFile); err != nil {
-		spinner.Error(fmt.Sprintf("Failed to switch configuration: %v", err))
 		return fmt.Errorf("failed to switch configuration: %v", err)
 	}
-	
-	spinner.Success(fmt.Sprintf("Switched to %s configuration", model))
+
+	ui.SuccessBox(fmt.Sprintf("Switched to %s configuration", model))
 	if verbose {
 		ui.InfoBox("Operation Details", []string{
 			fmt.Sprintf("Source: %s", sourceFile),

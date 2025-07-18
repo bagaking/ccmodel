@@ -58,26 +58,61 @@ func runList(cmd *cobra.Command, args []string) error {
 
 	fmt.Println()
 
-	// Model listing header with consistent width for all terminals
-	fmt.Printf("┌─ MODEL REGISTRY %s┐\n", strings.Repeat("─", 55))
-	fmt.Printf("│ #  │ %-18s │ Size   │ Modified   │\n", "Name")
-	fmt.Printf("├────┼─────────────────────┼────────┼────────────┤")
+	// 字段宽度
+	indexWidth := 2
+	indicatorWidth := 2
+	nameWidth := 18
+	sizeWidth := 6
+	dateWidth := 10
+	statusWidth := 7
 
+	// 竖线数量：#、indicator、name、size、date、status 共 6 个分隔符
+	// totalWidth := 1 + 1 + indexWidth + 3 + indicatorWidth + 1 + nameWidth + 3 + sizeWidth + 3 + dateWidth + 3 + statusWidth + 2
+
+	// ┌────┬────┬──────────────────┬────────┬──────────┬─────────┐
+	fmt.Printf("┌%s┬%s┬%s┬%s┬%s┬%s┐\n",
+		strings.Repeat("─", indexWidth+2),
+		strings.Repeat("─", indicatorWidth+2),
+		strings.Repeat("─", nameWidth+2),
+		strings.Repeat("─", sizeWidth+2),
+		strings.Repeat("─", dateWidth+2),
+		strings.Repeat("─", statusWidth+2),
+	)
+	fmt.Printf("│ %-*s │ %-*s │ %-*s │ %-*s │ %-*s │ %-*s │\n",
+		indexWidth, "#",
+		indicatorWidth, " ",
+		nameWidth, "Name",
+		sizeWidth, "Size",
+		dateWidth, "Modified",
+		statusWidth, "Status",
+	)
+	fmt.Printf("├%s┼%s┼%s┼%s┼%s┼%s┤\n",
+		strings.Repeat("─", indexWidth+2),
+		strings.Repeat("─", indicatorWidth+2),
+		strings.Repeat("─", nameWidth+2),
+		strings.Repeat("─", sizeWidth+2),
+		strings.Repeat("─", dateWidth+2),
+		strings.Repeat("─", statusWidth+2),
+	)
 	for i, model := range models {
 		modelFile := filepath.Join(configDir, fmt.Sprintf("settings.%s.json", model))
 		info, err := os.Stat(modelFile)
 		if err != nil {
 			continue
 		}
-
 		isActive := model == current
 		size := formatFileSize(info.Size())
 		modified := info.ModTime().Format("2006-01-02 15:04")
-
 		ui.ModelEntry(i+1, model, size, modified, isActive)
 	}
-
-	fmt.Println("└────┴─────────────────────┴────────┴────────────┘")
+	fmt.Printf("└%s┴%s┴%s┴%s┴%s┴%s┘\n",
+		strings.Repeat("─", indexWidth+2),
+		strings.Repeat("─", indicatorWidth+2),
+		strings.Repeat("─", nameWidth+2),
+		strings.Repeat("─", sizeWidth+2),
+		strings.Repeat("─", dateWidth+2),
+		strings.Repeat("─", statusWidth+2),
+	)
 	fmt.Println()
 
 	// Enhanced footer info with better formatting
