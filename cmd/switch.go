@@ -8,7 +8,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/bagaking/ccmodel/internal/ui"
+	"github.com/bagaking/cmdux/ui"
+	"github.com/bagaking/cmdux/ux"
 	"github.com/spf13/cobra"
 )
 
@@ -30,11 +31,23 @@ func switchModel(model string) error {
 
 	// Check if source file exists
 	if _, err := os.Stat(sourceFile); os.IsNotExist(err) {
+		errorBox := ui.NewBox().
+			Title("❌ Model Not Found").
+			Content(fmt.Sprintf("Configuration for model '%s' not found: %s", model, sourceFile)).
+			TitleStyle(app.Theme().Error).
+			ContentStyle(app.Theme().Error).
+			BorderStyle(app.Theme().Error)
+		app.Render(errorBox)
 		return fmt.Errorf("configuration for model '%s' not found: %s", model, sourceFile)
 	}
 
+	// Show loading with cmdux Spinner
+	spinner := ux.NewSpinner(ux.SpinnerDots).Color(app.Theme().Primary)
+	spinner.Start(fmt.Sprintf("Switching to %s...", model))
+
 	// Create backup directory if it doesn't exist
 	if err := os.MkdirAll(backupDir, 0755); err != nil {
+		spinner.Error("Failed to create backup directory")
 		return fmt.Errorf("failed to create backup directory: %v", err)
 	}
 
@@ -42,24 +55,36 @@ func switchModel(model string) error {
 	if _, err := os.Stat(targetFile); err == nil {
 		backupFile := filepath.Join(backupDir, fmt.Sprintf("settings.json.backup.%s", time.Now().Format("20060102_150405")))
 		if err := copyFile(targetFile, backupFile); err != nil {
+			spinner.Error("Failed to backup current configuration")
 			return fmt.Errorf("failed to backup current configuration: %v", err)
 		}
 		if verbose {
-			fmt.Printf("📁 Backed up to: %s\n", backupFile)
+			app.Println(fmt.Sprintf("📁 Backed up to: %s", backupFile))
 		}
 	}
 
 	// Switch configuration
 	if err := copyFile(sourceFile, targetFile); err != nil {
+		spinner.Error("Failed to switch configuration")
 		return fmt.Errorf("failed to switch configuration: %v", err)
 	}
 
-	ui.SuccessBox(fmt.Sprintf("Switched to %s configuration", model))
+	time.Sleep(1 * time.Second) // Show the loading animation
+	spinner.Success(fmt.Sprintf("Successfully switched to %s!", model))
+	app.Println("")
+
+	successBox := ui.NewBox().
+		Title("✅ Switch Complete").
+		Content(fmt.Sprintf("Switched to %s configuration\nRestart Claude Code to apply changes", model)).
+		TitleStyle(app.Theme().Success).
+		ContentStyle(app.Theme().Success).
+		BorderStyle(app.Theme().Success)
+	app.Render(successBox)
+
 	if verbose {
-		ui.InfoBox("Operation Details", []string{
-			fmt.Sprintf("Source: %s", sourceFile),
-			"Restart Claude Code to apply changes",
-		})
+		app.Println("")
+		app.Println("📁  " + app.Theme().Primary.Sprint("Source: ") + sourceFile)
+		app.Println("📁  " + app.Theme().Primary.Sprint("Target: ") + targetFile)
 	}
 
 	return nil
@@ -84,7 +109,7 @@ func copyFile(src, dst string) error {
 
 func getCurrentModel() (string, error) {
 	targetFile := filepath.Join(configDir, "settings.json")
-	
+
 	if _, err := os.Stat(targetFile); os.IsNotExist(err) {
 		return "none", nil
 	}

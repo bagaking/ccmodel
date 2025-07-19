@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
-	"github.com/bagaking/ccmodel/internal/ui"
+	"github.com/bagaking/cmdux/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -30,102 +29,103 @@ func runList(cmd *cobra.Command, args []string) error {
 
 	current, _ := getCurrentModel()
 
-	// Beautiful header
-	ui.Header("AI MODEL REGISTRY", "Available configurations for Claude Code")
+	// Beautiful header using cmdux
+	headerBox := ui.NewBox().
+		Title("AI MODEL REGISTRY").
+		Content("Available configurations for Claude Code").
+		Width(70).
+		TitleStyle(app.Theme().Primary).
+		ContentStyle(app.Theme().Secondary).
+		BorderStyle(app.Theme().Primary)
+	app.Render(headerBox)
+	app.Println("")
 
 	if len(models) == 0 {
-		ui.WarningBox("No AI model configurations found")
-		fmt.Println()
+		warningBox := ui.NewBox().
+			Title("⚠ No Configurations Found").
+			Content("No AI model configurations found in ~/.claude/").
+			TitleStyle(app.Theme().Warning).
+			ContentStyle(app.Theme().Warning).
+			BorderStyle(app.Theme().Warning)
+		app.Render(warningBox)
+		app.Println("")
 
-		ui.InfoBox("Getting Started", []string{
-			"Create configuration files in ~/.claude/",
-			"Name them as settings.{model}.json",
-			"Example: settings.gpt4.json, settings.claude3.json",
-		})
+		infoContent := `Getting Started:
 
-		ui.QuickStartBox()
+• Create configuration files in ~/.claude/
+• Name them as settings.{model}.json  
+• Example: settings.gpt4.json, settings.claude3.json
+
+Quick Commands:
+
+ccmodel list         → List all available models
+ccmodel current      → Show currently active model
+ccmodel switch <name> → Switch to a different model
+ccmodel --help       → Show detailed help`
+
+		infoBox := ui.NewBox().
+			Title("📚 Quick Start Guide").
+			Content(infoContent).
+			Width(60).
+			TitleStyle(app.Theme().Accent2).
+			ContentStyle(app.Theme().Primary).
+			BorderStyle(app.Theme().Accent2)
+		app.Render(infoBox)
 		return nil
 	}
 
-	// Current status
-	if current == "" {
-		ui.StatusLine("⚠", "No Active Configuration", "", ui.Warning)
+	// Current status - use simple output instead of box for variety
+	if current == "none" {
+		app.Println("⚠  " + app.Theme().Warning.Sprint("Status: No Active Configuration"))
 	} else if current == "custom" {
-		ui.StatusLine("⚙", "Custom Configuration", "Not managed by ccmodel", ui.Accent1)
+		app.Println("⚙  " + app.Theme().Accent1.Sprint("Status: Custom Configuration (Not managed by ccmodel)"))
 	} else {
-		ui.StatusLine("●", "Active Model", current, ui.Success)
+		app.Println("●  " + app.Theme().Success.Sprint("Status: "+current))
 	}
+	app.Println("")
 
-	fmt.Println()
+	// Model table using cmdux
+	table := ui.NewTable().
+		Headers("#", "Status", "Model Name", "Size", "Modified", "State").
+		HeaderStyle(app.Theme().Header).
+		RowStyle(app.Theme().Primary).
+		AltRowStyle(app.Theme().Secondary).
+		BorderStyle(app.Theme().Border)
 
-	// 字段宽度
-	indexWidth := 2
-	indicatorWidth := 2
-	nameWidth := 18
-	sizeWidth := 6
-	dateWidth := 10
-	statusWidth := 7
-
-	// 竖线数量：#、indicator、name、size、date、status 共 6 个分隔符
-	// totalWidth := 1 + 1 + indexWidth + 3 + indicatorWidth + 1 + nameWidth + 3 + sizeWidth + 3 + dateWidth + 3 + statusWidth + 2
-
-	// ┌────┬────┬──────────────────┬────────┬──────────┬─────────┐
-	fmt.Printf("┌%s┬%s┬%s┬%s┬%s┬%s┐\n",
-		strings.Repeat("─", indexWidth+2),
-		strings.Repeat("─", indicatorWidth+2),
-		strings.Repeat("─", nameWidth+2),
-		strings.Repeat("─", sizeWidth+2),
-		strings.Repeat("─", dateWidth+2),
-		strings.Repeat("─", statusWidth+2),
-	)
-	fmt.Printf("│ %-*s │ %-*s │ %-*s │ %-*s │ %-*s │ %-*s │\n",
-		indexWidth, "#",
-		indicatorWidth, " ",
-		nameWidth, "Name",
-		sizeWidth, "Size",
-		dateWidth, "Modified",
-		statusWidth, "Status",
-	)
-	fmt.Printf("├%s┼%s┼%s┼%s┼%s┼%s┤\n",
-		strings.Repeat("─", indexWidth+2),
-		strings.Repeat("─", indicatorWidth+2),
-		strings.Repeat("─", nameWidth+2),
-		strings.Repeat("─", sizeWidth+2),
-		strings.Repeat("─", dateWidth+2),
-		strings.Repeat("─", statusWidth+2),
-	)
 	for i, model := range models {
 		modelFile := filepath.Join(configDir, fmt.Sprintf("settings.%s.json", model))
 		info, err := os.Stat(modelFile)
 		if err != nil {
 			continue
 		}
-		isActive := model == current
-		size := formatFileSize(info.Size())
-		modified := info.ModTime().Format("2006-01-02 15:04")
-		ui.ModelEntry(i+1, model, size, modified, isActive)
-	}
-	fmt.Printf("└%s┴%s┴%s┴%s┴%s┴%s┘\n",
-		strings.Repeat("─", indexWidth+2),
-		strings.Repeat("─", indicatorWidth+2),
-		strings.Repeat("─", nameWidth+2),
-		strings.Repeat("─", sizeWidth+2),
-		strings.Repeat("─", dateWidth+2),
-		strings.Repeat("─", statusWidth+2),
-	)
-	fmt.Println()
 
-	// Enhanced footer info with better formatting
-	ui.InfoBox("Registry Summary", []string{
-		fmt.Sprintf("📁 Config Path: %s", configDir),
-		fmt.Sprintf("📊 Total Models: %d", len(models)),
-		fmt.Sprintf("⚡ Active Model: %s", func() string {
-			if current == "" {
-				return "None"
-			}
-			return current
-		}()),
-	})
+		isActive := model == current
+		status := "○"
+		state := ""
+		if isActive {
+			status = "★"
+			state = "ACTIVE"
+		}
+
+		size := formatFileSize(info.Size())
+		modified := info.ModTime().Format("Jan 02 15:04")
+
+		table.AddRow(
+			fmt.Sprintf("%d", i+1),
+			status,
+			model,
+			size,
+			modified,
+			state,
+		)
+	}
+
+	app.Render(table)
+	app.Println("")
+
+	// Summary info - use simple output instead of box for variety
+	app.Println("📁  " + app.Theme().Primary.Sprint("Config Path: ") + configDir)
+	app.Println("📊  " + app.Theme().Primary.Sprint("Total Models: ") + fmt.Sprintf("%d", len(models)))
 
 	return nil
 }

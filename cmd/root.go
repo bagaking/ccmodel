@@ -5,12 +5,14 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/bagaking/cmdux"
 	"github.com/spf13/cobra"
 )
 
 var (
 	configDir string
 	verbose   bool
+	app       *cmdux.App
 )
 
 var rootCmd = &cobra.Command{
@@ -38,13 +40,16 @@ func init() {
 	rootCmd.AddCommand(switchCmd)
 	rootCmd.AddCommand(backupCmd)
 	rootCmd.AddCommand(completionCmd)
-	rootCmd.AddCommand(demoCmd)
+	// Note: demo command removed as requested
 }
 
 func initConfig() {
 	if configDir == "" {
 		configDir = filepath.Join(os.Getenv("HOME"), ".claude")
 	}
+	
+	// Initialize cmdux app
+	app = cmdux.New()
 }
 
 func runRoot(cmd *cobra.Command, args []string) error {

@@ -7,7 +7,23 @@ import (
 	"time"
 
 	"github.com/fatih/color"
+	"github.com/spf13/cobra"
 )
+
+var backupCmd = &cobra.Command{
+	Use:   "backup",
+	Short: "Create a backup of the current configuration",
+	Long:  "Create a timestamped backup of the current settings.json file",
+	RunE:  runBackup,
+}
+
+func init() {
+	// Command is added in root.go
+}
+
+func runBackup(cmd *cobra.Command, args []string) error {
+	return backupCurrent()
+}
 
 func backupCurrent() error {
 	currentFile := filepath.Join(configDir, "settings.json")
@@ -28,7 +44,7 @@ func backupCurrent() error {
 
 	green := color.New(color.FgGreen).SprintFunc()
 	blue := color.New(color.FgBlue).SprintFunc()
-	
+
 	fmt.Printf("%s Configuration backed up to: %s\n", green("✅"), blue(backupFile))
 	return nil
 }

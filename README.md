@@ -1,178 +1,112 @@
 # ccmodel
 
-A simple CLI tool to manage and switch between different Claude Code model configurations.  
-Inspired by tools like `nvm` and `pyenv`.
-
----
+A powerful AI Model Configuration Manager built with [cmdux](https://github.com/bagaking/cmdux).
 
 ## Features
 
-- Switch between multiple model/service configurations instantly
-- Atomic swaps with automatic backups
-- Cross-platform: macOS, Linux, Windows
-- Shell completion for bash, zsh, fish
-- No dependencies, single binary
-
----
-
-## Quick Start
-
-```bash
-# Install (macOS/Linux)
-curl -sSL https://raw.githubusercontent.com/bagaking/ccmodel/main/install.sh | bash
-
-# Or download from releases: https://github.com/bagaking/ccmodel/releases
-
-# List available models
-ccmodel list
-
-# Switch to a model
-ccmodel switch gpt4
-ccmodel switch claude3
-
-# Show current model
-ccmodel current
-```
-
----
+- **Model Management**: List, switch, and manage AI models
+- **Rich UI**: Beautiful boxes, tables, and interactive elements
+- **Animations**: Loading spinners, progress bars, and visual effects
+- **Themes**: Multiple built-in themes for different preferences
+- **Demo Mode**: Showcase advanced terminal effects
 
 ## Installation
 
-### Homebrew (macOS/Linux)
-```bash
-brew install bagaking/tap/ccmodel
-```
-
-### Go Install
 ```bash
 go install github.com/bagaking/ccmodel@latest
 ```
 
-### Manual
-1. Download from [releases](https://github.com/bagaking/ccmodel/releases)
-2. Extract and add to PATH
-3. Run `ccmodel --help`
+Or build from source:
 
----
+```bash
+git clone https://github.com/bagaking/ccmodel
+cd ccmodel
+go build -o ccmodel
+```
+
+## Completion
+
+```zsh
+eval "$(ccmodel completion zsh 2>/dev/null || true)"
+```
 
 ## Usage
 
 ### Basic Commands
 
 ```bash
-ccmodel list         # List all available models
-ccmodel ls           # Alias for list
+# Show welcome screen with quick start guide
+ccmodel
 
-ccmodel current      # Show current model
-ccmodel status       # Alias for current
+# List all available models
+ccmodel list
 
-ccmodel switch NAME  # Switch to a model
+# Show current active model
+ccmodel current
 
-ccmodel backup       # Backup current configuration
+# Switch to a different model
+ccmodel <model_name>
 ```
 
-### Shell Completion
-
-```bash
-# bash
-# 推荐在 ~/.bashrc 末尾添加如下内容，并 source 使其生效
-
-echo 'eval "$(ccmodel completion bash)"' >> ~/.bashrc
-source ~/.bashrc
-
-# zsh
-# 推荐在 ~/.zshrc 末尾添加如下内容，并 source 使其生效
-# 你可以直接复制以下命令到终端：
-
-echo 'eval "$(ccmodel completion zsh)"' >> ~/.zshrc
-source ~/.zshrc
-
-# fish
-# 推荐在 ~/.config/fish/config.fish 末尾添加如下内容
-
-ccmodel completion fish | source >> ~/.config/fish/config.fish
-```
-
----
-
-## Configuration
-
-### Adding New Models
-
-1. Create a new JSON file in `~/.claude/`
-2. Name it `settings.{model-name}.json`
-3. Use ccmodel to switch:
-
-```bash
-cat << EOF > ~/.claude/settings.openrouter.json
-{
-  "env": {
-    "ANTHROPIC_API_KEY": "your-key-here",
-    "ANTHROPIC_BASE_URL": "https://openrouter.ai/api/v1"
-  },
-  "permissions": {
-    "allow": [],
-    "deny": []
-  }
-}
-EOF
-
-ccmodel switch openrouter
-```
-
----
-
-## Example Output
+### Screenshots
 
 ```
-Available Models:
-  1. gpt4         1.2KB  2024-01-15 14:32  [active]
-  2. claude3      1.1KB  2024-01-14 09:15
-  3. openrouter   1.3KB  2024-01-13 18:45
+╭───────────────────────[ AI MODEL REGISTRY ]────────────────────────╮
+│ Available configurations for Claude Code                           │
+╰────────────────────────────────────────────────────────────────────╯
+●  Status: k2
 
-Config directory: /Users/you/.claude
-Total models: 3
+╭───┬────────┬────────────┬──────┬──────────────┬────────╮
+│ # │ Status │ Model Name │ Size │ Modified     │ State  │
+├───┼────────┼────────────┼──────┼──────────────┼────────┤
+│ 1 │ ★      │ k2         │ 296B │ Jul 19 01:41 │ ACTIVE │
+│ 2 │ ○      │ claude     │ 286B │ Jul 19 01:56 │        │
+╰───┴────────┴────────────┴──────┴──────────────┴────────╯
+📁  Config Path: /Users/bytedance/.claude
+📊  Total Models: 2
 ```
-
----
-
+ 
 ## Development
 
-### Build from Source
+### Project Structure
 
-```bash
-git clone https://github.com/bagaking/ccmodel.git
-cd ccmodel
-go mod download
-go build -o ccmodel .
+```
+ccmodel/
+├── cmd/                # commands
+├───── ...
+├── main.go             # Main application using cmdux
+├── go.mod              # Dependencies (includes cmdux)
+├── ...
+└── README.md           # This file
 ```
 
-### Run Tests
+
+### Building
 
 ```bash
-go test ./...
+go build -o ccmodel
 ```
-
----
 
 ## Contributing
 
-Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
-
----
+1. Fork the repository
+2. Create your feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
+MIT License - see LICENSE file for details.
 
----
+## Dependencies
 
-## Acknowledgments
 
-- Inspired by `nvm`, `pyenv`, and similar tools
-- Built with [Cobra](https://github.com/spf13/cobra)
-- Colors via [Fatih/color](https://github.com/fatih/color)
-
----
-
-Maintained by contributors.
+- [cobra](https://github.com/spf13/cobra) - CLI framework
+- [color](https://github.com/fatih/color) - Terminal colors
+- [cmdux](https://github.com/bagaking/cmdux) - The terminal UI library powering this application
+    - ✨ Beautiful terminal UI with rich animations
+    - 🎨 Multiple theme support (Default, Dark, Cyberpunk, Monochrome)
+    - 📊 Enhanced tables and data visualization
+    - 🚀 Smooth loading animations and progress bars
+    - 🎯 Better user experience and interaction
