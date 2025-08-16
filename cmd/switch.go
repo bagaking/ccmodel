@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"crypto/md5"
+	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"time"
@@ -91,20 +91,29 @@ func switchModel(model string) error {
 }
 
 func copyFile(src, dst string) error {
-	source, err := os.Open(src)
+	// Read source file
+	data, err := os.ReadFile(src)
 	if err != nil {
 		return err
 	}
-	defer source.Close()
 
-	destination, err := os.Create(dst)
+	// Parse JSON and remove __cc and __ccmodel fields
+	var config map[string]any
+	if err := json.Unmarshal(data, &config); err != nil {
+		return err
+	}
+
+	// Remove quota config fields for clean copy
+	delete(config, "__cc")
+	delete(config, "__ccmodel")
+
+	// Write cleaned config to destination
+	cleanData, err := json.MarshalIndent(config, "", "  ")
 	if err != nil {
 		return err
 	}
-	defer destination.Close()
 
-	_, err = io.Copy(destination, source)
-	return err
+	return os.WriteFile(dst, cleanData, 0644)
 }
 
 func getCurrentModel() (string, error) {
@@ -138,16 +147,32 @@ func getCurrentModel() (string, error) {
 }
 
 func fileChecksum(file string) (string, error) {
-	f, err := os.Open(file)
+	// Read file content
+	data, err := os.ReadFile(file)
 	if err != nil {
 		return "", err
 	}
-	defer f.Close()
 
-	h := md5.New()
-	if _, err := io.Copy(h, f); err != nil {
+	// Parse JSON and remove __cc and __ccmodel fields for comparison
+	var config map[string]any
+	if err := json.Unmarshal(data, &config); err != nil {
+		// If not valid JSON, fall back to raw content
+		h := md5.New()
+		h.Write(data)
+		return fmt.Sprintf("%x", h.Sum(nil)), nil
+	}
+
+	// Remove quota config fields for consistent comparison
+	delete(config, "__cc")
+	delete(config, "__ccmodel")
+
+	// Use cleaned config for checksum
+	cleanData, err := json.Marshal(config)
+	if err != nil {
 		return "", err
 	}
 
+	h := md5.New()
+	h.Write(cleanData)
 	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }

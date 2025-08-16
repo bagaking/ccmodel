@@ -105,6 +105,17 @@ Last Modified: %s`,
 			app.Println("")
 			app.Println("⚠  " + app.Theme().Warning.Sprint("This configuration is not managed by ccmodel templates"))
 		}
+
+		// Try to get and display quota information
+		app.Println("")
+		quotaInfo, err := getQuotaInfo()
+		if err != nil {
+			if verbose {
+				app.Println("⚠  " + app.Theme().Warning.Sprint("Failed to get quota info: ") + err.Error())
+			}
+		} else if quotaInfo != nil {
+			renderQuotaInfo(quotaInfo)
+		}
 	} else {
 		app.Println("❌  " + app.Theme().Error.Sprint("Configuration file not found"))
 	}

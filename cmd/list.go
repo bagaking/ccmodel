@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
+	"time"
 
 	"github.com/bagaking/cmdux/ui"
 	"github.com/spf13/cobra"
@@ -86,11 +88,29 @@ ccmodel --help       → Show detailed help`
 
 	// Model table using cmdux
 	table := ui.NewTable().
-		Headers("#", "Status", "Model Name", "Size", "Modified", "State").
+		Headers("#", "Status", "Model Name", "Size", "Modified", "Quota", "State").
 		HeaderStyle(app.Theme().Header).
 		RowStyle(app.Theme().Primary).
 		AltRowStyle(app.Theme().Secondary).
 		BorderStyle(app.Theme().Border)
+
+	// Fetch quota info for all models concurrently with adaptive timeout
+	quotaResults := make(map[string]*QuotaInfo)
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	
+	for _, model := range models {
+		wg.Add(1)
+		go func(modelName string) {
+			defer wg.Done()
+			// Use default short timeout for list view
+			quotaInfo, _ := getQuotaInfoForModel(modelName, 8*time.Second)
+			mu.Lock()
+			quotaResults[modelName] = quotaInfo
+			mu.Unlock()
+		}(model)
+	}
+	wg.Wait()
 
 	for i, model := range models {
 		modelFile := filepath.Join(configDir, fmt.Sprintf("settings.%s.json", model))
@@ -110,12 +130,17 @@ ccmodel --help       → Show detailed help`
 		size := formatFileSize(info.Size())
 		modified := info.ModTime().Format("Jan 02 15:04")
 
+		// Get quota info for this model
+		quotaInfo := quotaResults[model]
+		quotaDisplay := formatQuotaForTable(quotaInfo)
+
 		table.AddRow(
 			fmt.Sprintf("%d", i+1),
 			status,
 			model,
 			size,
 			modified,
+			quotaDisplay,
 			state,
 		)
 	}
