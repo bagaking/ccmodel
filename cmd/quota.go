@@ -314,8 +314,24 @@ func getQuotaInfoWithTimeout(timeout time.Duration) (*QuotaInfo, error) {
 	return getQuotaInfoForModel(currentModel, timeout)
 }
 
-// getQuotaInfoForModel retrieves quota information for a specific model
+// getQuotaInfoForModel retrieves quota information for a specific model with collaboration
 func getQuotaInfoForModel(modelName string, timeout time.Duration) (*QuotaInfo, error) {
+	// Try to get recent data from history first (collaboration mechanism)
+	historyManager := getQuotaHistoryManager()
+	
+	// 对于一般quota查询，使用30秒的合理默认协商窗口
+	// 这提供了足够的时间让不同ccmodel实例共享数据，避免重复API调用
+	collaborationWindow := NewDefaultCollaborationTimeWindow()
+	timeWindow := collaborationWindow.CalculateWindow()
+	
+	if recentQuota, sourceEntry, err := historyManager.GetRecentQuotaFromHistory(modelName, timeWindow); err == nil && recentQuota != nil {
+		// Found recent data from another process, use it
+		if verbose {
+			fmt.Printf("Debug: Using recent quota from process %d (%s)\n", sourceEntry.ProcessID, sourceEntry.ProcessName)
+		}
+		return recentQuota, nil
+	}
+	
 	// Check cache first
 	cacheKey := modelName
 	quotaCacheMux.RLock()
@@ -362,6 +378,15 @@ func getQuotaInfoForModel(modelName string, timeout time.Duration) (*QuotaInfo, 
 		Timestamp: time.Now(),
 	}
 	quotaCacheMux.Unlock()
+
+	// Record to history for collaboration with other ccmodel instances
+	if quotaInfo != nil {
+		if err := historyManager.RecordQuota(modelName, quotaInfo); err != nil {
+			if verbose {
+				fmt.Printf("Debug: Failed to record quota history: %v\n", err)
+			}
+		}
+	}
 
 	return quotaInfo, err
 }
@@ -458,6 +483,22 @@ func formatQuotaForTable(quotaInfo *QuotaInfo) string {
 	totalStr := formatQuotaValue(quotaInfo.Total)
 
 	return fmt.Sprintf("%s/%s (%.2f%%)", usedStr, totalStr, usagePercent)
+}
+
+// formatQuotaForTopTable 格式化quota信息用于top命令的表格显示（不包含百分比避免冗余）
+func formatQuotaForTopTable(quotaInfo *QuotaInfo) string {
+	if quotaInfo == nil || quotaInfo.Error != nil {
+		return "-"
+	}
+
+	if quotaInfo.Total <= 0 {
+		return "-"
+	}
+
+	usedStr := formatQuotaValue(quotaInfo.Used)
+	totalStr := formatQuotaValue(quotaInfo.Total)
+
+	return fmt.Sprintf("%s/%s", usedStr, totalStr)
 }
 
 // getQuotaStatusColor returns the appropriate color for quota status

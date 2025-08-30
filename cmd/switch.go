@@ -25,12 +25,34 @@ func runSwitch(cmd *cobra.Command, args []string) error {
 }
 
 func switchModel(model string) error {
+	startTime := time.Now()
+	
+	// 获取当前模型用于历史记录
+	fromModel, _ := getCurrentModel()
+	if fromModel == "" {
+		fromModel = "none"
+	}
+	
+	// 获取切换历史管理器
+	switchHistory := getSwitchHistoryManager()
+	
+	// 延迟记录切换结果（成功或失败）
+	var switchError error
+	defer func() {
+		duration := time.Since(startTime)
+		if recordErr := switchHistory.RecordSwitch(fromModel, model, duration, switchError); recordErr != nil && verbose {
+			fmt.Printf("Warning: Failed to record switch history: %v\n", recordErr)
+		}
+	}()
+	
 	sourceFile := filepath.Join(configDir, fmt.Sprintf("settings.%s.json", model))
 	targetFile := filepath.Join(configDir, "settings.json")
-	backupDir := filepath.Join(configDir, "backups")
+	// 将backup目录统一放在ccmodel目录下，便于集中管理
+	backupDir := filepath.Join(configDir, "ccmodel", "backups")
 
 	// Check if source file exists
 	if _, err := os.Stat(sourceFile); os.IsNotExist(err) {
+		switchError = fmt.Errorf("configuration for model '%s' not found: %s", model, sourceFile)
 		errorBox := ui.NewBox().
 			Title("❌ Model Not Found").
 			Content(fmt.Sprintf("Configuration for model '%s' not found: %s", model, sourceFile)).
@@ -38,7 +60,7 @@ func switchModel(model string) error {
 			ContentStyle(app.Theme().Error).
 			BorderStyle(app.Theme().Error)
 		app.Render(errorBox)
-		return fmt.Errorf("configuration for model '%s' not found: %s", model, sourceFile)
+		return switchError
 	}
 
 	// Show loading with cmdux Spinner
@@ -48,7 +70,8 @@ func switchModel(model string) error {
 	// Create backup directory if it doesn't exist
 	if err := os.MkdirAll(backupDir, 0755); err != nil {
 		spinner.Error("Failed to create backup directory")
-		return fmt.Errorf("failed to create backup directory: %v", err)
+		switchError = fmt.Errorf("failed to create backup directory: %v", err)
+		return switchError
 	}
 
 	// Backup current configuration if it exists
@@ -56,7 +79,8 @@ func switchModel(model string) error {
 		backupFile := filepath.Join(backupDir, fmt.Sprintf("settings.json.backup.%s", time.Now().Format("20060102_150405")))
 		if err := copyFile(targetFile, backupFile); err != nil {
 			spinner.Error("Failed to backup current configuration")
-			return fmt.Errorf("failed to backup current configuration: %v", err)
+			switchError = fmt.Errorf("failed to backup current configuration: %v", err)
+			return switchError
 		}
 		if verbose {
 			app.Println(fmt.Sprintf("📁 Backed up to: %s", backupFile))
@@ -66,7 +90,8 @@ func switchModel(model string) error {
 	// Switch configuration
 	if err := copyFile(sourceFile, targetFile); err != nil {
 		spinner.Error("Failed to switch configuration")
-		return fmt.Errorf("failed to switch configuration: %v", err)
+		switchError = fmt.Errorf("failed to switch configuration: %v", err)
+		return switchError
 	}
 
 	time.Sleep(1 * time.Second) // Show the loading animation
