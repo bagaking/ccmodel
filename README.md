@@ -6,10 +6,10 @@ A powerful AI Model Configuration Manager built with [cmdux](https://github.com/
 
 - **Model Management**: List, switch, and manage AI models
 - **Rich UI**: Beautiful boxes, tables, and interactive elements
-- **Animations**: Loading spinners, progress bars, and visual effects
-- **Themes**: Multiple built-in themes for different preferences
-- **Demo Mode**: Showcase advanced terminal effects
+- **Real-time Monitoring**: Interactive `top` mode for live quota monitoring
+- **JSON API**: Machine-readable output for integration with editors and tools
 - **Quota Monitoring**: Real-time API usage tracking with configurable macros
+- **Shell Integration**: Comprehensive shell completion support
 
 ## Installation
 
@@ -42,11 +42,17 @@ ccmodel
 # List all available models
 ccmodel list
 
-# Show current active model
+# Show current active model (human-readable)
 ccmodel current
+
+# Show current active model (JSON format)
+ccmodel current --json
 
 # Switch to a different model
 ccmodel <model_name>
+
+# Interactive real-time monitoring
+ccmodel top
 ```
 
 ### Quota Monitoring
@@ -65,7 +71,62 @@ ccmodel current
 # Quick quota overview for all models
 ccmodel list
 # Shows quota in table: "250/1000 (25%)"
+
+# Real-time interactive monitoring
+ccmodel top
+# Interactive dashboard with live updates
 ```
+
+### JSON API for Integrations
+
+For VS Code extensions, status bar widgets, and other integrations:
+
+```bash
+# Get current model status as JSON
+ccmodel current --json
+ccmodel status --json  # Equivalent alias
+
+# Example output:
+{
+  "model": "claude-sonnet",
+  "config_path": "/Users/user/.claude/settings.json", 
+  "file_size": 286,
+  "last_modified": "2025-09-07T23:58:25Z",
+  "is_active": true,
+  "is_custom": false,
+  "quota": {
+    "Total": 1000.0,
+    "Used": 250.5
+  }
+}
+```
+
+### Real-time Monitoring (Top Mode)
+
+Interactive dashboard for monitoring all models simultaneously:
+
+```bash
+ccmodel top [--interval 15s] [--colors auto|light|dark]
+
+# Features:
+# • Live quota updates for all models
+# • Interactive model switching (1-9 keys)
+# • Adaptive color schemes (auto-detects terminal background)
+# • Process collaboration (shares data between instances)
+# • Configurable refresh intervals (minimum 10s)
+```
+
+### Command Reference
+
+| Command | Aliases | Description | JSON Support |
+|---------|---------|-------------|--------------|
+| `ccmodel` | - | Show welcome screen and quick start guide | ❌ |
+| `ccmodel list` | - | List all available model configurations | ❌ |
+| `ccmodel current` | `status`, `whoami` | Show current active model status | ✅ `--json` |
+| `ccmodel switch <model>` | `<model>` | Switch to specified model | ❌ |
+| `ccmodel top` | `monitor`, `watch` | Interactive real-time monitoring dashboard | ❌ |
+| `ccmodel backup` | - | Backup current configuration | ❌ |
+| `ccmodel completion` | - | Generate shell completion scripts | ❌ |
 
 ### Screenshots
 
@@ -100,10 +161,29 @@ ccmodel/
 ```
 
 
-### Building
+### Development Commands
+
+The project includes comprehensive development tooling via Make:
 
 ```bash
-go build -o ccmodel
+# Development
+make dev          # Run in development mode
+make test         # Run all tests  
+make fmt          # Format Go code
+make lint         # Run golangci-lint
+
+# Building
+make build        # Build binary for current platform
+make build-all    # Cross-compile for all platforms
+make clean        # Clean build artifacts
+
+# Installation  
+make install      # Install to /usr/local/bin (requires sudo)
+make install-dev  # Install to ~/go/bin for development
+make uninstall    # Remove from /usr/local/bin
+
+# Release
+make release      # Prepare release with all binaries
 ```
 
 ## Contributing
@@ -183,12 +263,11 @@ Add quota monitoring to any model configuration by including a `__cc` section:
 
 ## Dependencies
 
-- [cobra](https://github.com/spf13/cobra) - CLI framework
-- [color](https://github.com/fatih/color) - Terminal colors
-- [gjson](https://github.com/tidwall/gjson) - JSON path queries for macro expansion
+- [cobra](https://github.com/spf13/cobra) - CLI framework and command structure
+- [gjson](https://github.com/tidwall/gjson) - JSON path queries for macro expansion  
 - [cmdux](https://github.com/bagaking/cmdux) - The terminal UI library powering this application
     - ✨ Beautiful terminal UI with rich animations
-    - 🎨 Multiple theme support (Default, Dark, Cyberpunk, Monochrome)
+    - 🎨 Adaptive color schemes with auto-detection
     - 📊 Enhanced tables and data visualization
     - 🚀 Smooth loading animations and progress bars
     - 🎯 Better user experience and interaction
