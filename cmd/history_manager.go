@@ -8,10 +8,10 @@ import (
 type HistoryManager interface {
 	// Initialize 初始化历史记录系统
 	Initialize() error
-	
+
 	// GetHistoryPath 返回历史记录目录路径
 	GetHistoryPath() string
-	
+
 	// CleanupOldLogs 清理超过指定天数的历史记录
 	CleanupOldLogs(retentionDays int) error
 }
@@ -20,7 +20,7 @@ type HistoryManager interface {
 type CollaborationTimeWindow struct {
 	// DetectionInterval 检测周期，用于计算协商时间窗口
 	DetectionInterval time.Duration
-	
+
 	// WindowMultiplier 窗口倍数，实际窗口 = DetectionInterval * WindowMultiplier
 	WindowMultiplier float64
 }

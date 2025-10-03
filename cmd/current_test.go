@@ -10,7 +10,7 @@ import (
 func TestModelStatusCollector_Basic(t *testing.T) {
 	tempDir := t.TempDir()
 	collector := NewModelStatusCollector(tempDir)
-	
+
 	if collector.configDir != tempDir {
 		t.Errorf("Expected configDir %s, got %s", tempDir, collector.configDir)
 	}
@@ -19,7 +19,7 @@ func TestModelStatusCollector_Basic(t *testing.T) {
 func TestModelStatusCollector_collectFileInfo(t *testing.T) {
 	tempDir := t.TempDir()
 	configFile := filepath.Join(tempDir, "settings.json")
-	
+
 	// 创建测试配置文件
 	testConfig := `{"test": "config"}`
 	err := os.WriteFile(configFile, []byte(testConfig), 0644)
@@ -34,20 +34,20 @@ func TestModelStatusCollector_collectFileInfo(t *testing.T) {
 		IsActive:   true,
 		IsCustom:   false,
 	}
-	
+
 	err = collector.collectFileInfo(status)
 	if err != nil {
 		t.Errorf("Expected no error, got: %v", err)
 	}
-	
+
 	if status.FileSize == 0 {
 		t.Error("Expected FileSize to be > 0")
 	}
-	
+
 	if status.LastModified == "" {
 		t.Error("Expected LastModified to be set")
 	}
-	
+
 	// 验证 ISO 时间格式
 	if len(status.LastModified) != len("2006-01-02T15:04:05Z") {
 		t.Errorf("Expected ISO timestamp format, got: %s", status.LastModified)
@@ -60,12 +60,12 @@ func TestModelStatusCollector_collectFileInfo_NoFile(t *testing.T) {
 		Model:      "test-model",
 		ConfigPath: "/nonexistent/settings.json",
 	}
-	
+
 	err := collector.collectFileInfo(status)
 	if err == nil {
 		t.Error("Expected error for non-existent file")
 	}
-	
+
 	if status.FileSize != 0 {
 		t.Error("Expected FileSize to remain 0")
 	}
@@ -76,7 +76,7 @@ func TestModelStatusCollector_collectFileInfo_NoneModel(t *testing.T) {
 	status := &ModelStatus{
 		Model: "none",
 	}
-	
+
 	err := collector.collectFileInfo(status)
 	if err != nil {
 		t.Errorf("Expected no error for 'none' model, got: %v", err)
@@ -89,26 +89,26 @@ func TestQuotaStatusJSON_Serialization(t *testing.T) {
 		Used:    250.25,
 		Percent: 25.0,
 	}
-	
+
 	jsonData, err := json.Marshal(quota)
 	if err != nil {
 		t.Fatalf("Failed to marshal quota: %v", err)
 	}
-	
+
 	var unmarshaled QuotaStatusJSON
 	err = json.Unmarshal(jsonData, &unmarshaled)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal quota: %v", err)
 	}
-	
+
 	if unmarshaled.Total != quota.Total {
 		t.Errorf("Expected total %f, got %f", quota.Total, unmarshaled.Total)
 	}
-	
+
 	if unmarshaled.Used != quota.Used {
 		t.Errorf("Expected used %f, got %f", quota.Used, unmarshaled.Used)
 	}
-	
+
 	if unmarshaled.Percent != quota.Percent {
 		t.Errorf("Expected percent %f, got %f", quota.Percent, unmarshaled.Percent)
 	}
@@ -128,22 +128,22 @@ func TestModelStatus_JSONSerialization(t *testing.T) {
 			Percent: 25.0,
 		},
 	}
-	
+
 	jsonData, err := json.MarshalIndent(status, "", "  ")
 	if err != nil {
 		t.Fatalf("Failed to marshal status: %v", err)
 	}
-	
+
 	var unmarshaled ModelStatus
 	err = json.Unmarshal(jsonData, &unmarshaled)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal status: %v", err)
 	}
-	
+
 	if unmarshaled.Model != status.Model {
 		t.Errorf("Expected model %s, got %s", status.Model, unmarshaled.Model)
 	}
-	
+
 	if unmarshaled.Quota == nil {
 		t.Error("Expected quota to be unmarshaled")
 	} else {
@@ -159,18 +159,18 @@ func TestModelStatus_JSONSerialization_WithError(t *testing.T) {
 		IsActive: false,
 		Error:    "test error message",
 	}
-	
+
 	jsonData, err := json.MarshalIndent(status, "", "  ")
 	if err != nil {
 		t.Fatalf("Failed to marshal status: %v", err)
 	}
-	
+
 	var unmarshaled ModelStatus
 	err = json.Unmarshal(jsonData, &unmarshaled)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal status: %v", err)
 	}
-	
+
 	if unmarshaled.Error != status.Error {
 		t.Errorf("Expected error %s, got %s", status.Error, unmarshaled.Error)
 	}
@@ -185,7 +185,7 @@ func TestParseLastModified(t *testing.T) {
 		{"", ""},
 		{"invalid", "invalid"},
 	}
-	
+
 	for _, tc := range testCases {
 		result := parseLastModified(tc.input)
 		if result != tc.expected {
@@ -209,12 +209,12 @@ func TestModelStatus_JSONCompleteStructure(t *testing.T) {
 			Percent: 30.0,
 		},
 	}
-	
+
 	jsonData, err := json.MarshalIndent(status, "", "  ")
 	if err != nil {
 		t.Fatalf("Failed to marshal status: %v", err)
 	}
-	
+
 	// 验证 JSON 包含期望的字段
 	expectedFields := []string{
 		`"model": "complete-test"`,
@@ -228,7 +228,7 @@ func TestModelStatus_JSONCompleteStructure(t *testing.T) {
 		`"used": 1500`,
 		`"percent": 30`,
 	}
-	
+
 	jsonString := string(jsonData)
 	for _, field := range expectedFields {
 		if !containsString(jsonString, field) {

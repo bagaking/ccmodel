@@ -33,7 +33,7 @@ func Execute() error {
 
 func init() {
 	cobra.OnInitialize(initConfig)
-	
+
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(currentCmd)
@@ -47,7 +47,7 @@ func initConfig() {
 	if configDir == "" {
 		configDir = filepath.Join(os.Getenv("HOME"), ".claude")
 	}
-	
+
 	// Initialize cmdux app
 	app = cmdux.New()
 }
@@ -57,7 +57,7 @@ func runRoot(cmd *cobra.Command, args []string) error {
 	if cmd.CalledAs() == "completion" || (len(os.Args) > 1 && os.Args[1] == "completion") {
 		return nil
 	}
-	
+
 	if len(args) == 0 {
 		return runList(cmd, args)
 	}
@@ -70,7 +70,7 @@ func getAvailableModels() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	
+
 	models := []string{}
 	for _, file := range files {
 		model := extractModelName(file)
@@ -78,7 +78,7 @@ func getAvailableModels() ([]string, error) {
 			models = append(models, model)
 		}
 	}
-	
+
 	sort.Strings(models)
 	return models, nil
 }
@@ -89,7 +89,7 @@ func extractModelName(filename string) string {
 	if !matched {
 		return ""
 	}
-	
+
 	// Remove "settings." prefix and ".json" suffix
 	model := base[len("settings.") : len(base)-len(".json")]
 	return model

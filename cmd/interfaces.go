@@ -10,16 +10,16 @@ import (
 type ConfigStorage interface {
 	// LoadModel 加载指定模型配置
 	LoadModel(modelName string) ([]byte, error)
-	
+
 	// SaveActiveConfig 保存活动配置
 	SaveActiveConfig(data []byte) error
-	
+
 	// BackupActiveConfig 备份当前活动配置
 	BackupActiveConfig() error
-	
+
 	// GetActiveModel 获取当前活动模型名称
 	GetActiveModel() (string, error)
-	
+
 	// ListAvailableModels 列出所有可用模型
 	ListAvailableModels() ([]string, error)
 }
@@ -28,10 +28,10 @@ type ConfigStorage interface {
 type HistoryStorage interface {
 	// RecordEvent 记录事件
 	RecordEvent(entry HistoryEntry) error
-	
+
 	// GetRecentEvents 获取最近的事件
 	GetRecentEvents(timeWindow time.Duration) ([]HistoryEntry, error)
-	
+
 	// CleanupOldEvents 清理旧事件
 	CleanupOldEvents(retentionDays int) error
 }
@@ -39,21 +39,21 @@ type HistoryStorage interface {
 // QuotaStorage Quota专用存储接口
 type QuotaStorage interface {
 	HistoryStorage
-	
+
 	// GetRecentQuota 获取最近的quota数据
 	GetRecentQuota(modelName string, timeWindow time.Duration) (*QuotaInfo, *QuotaHistoryEntry, error)
-	
+
 	// RecordQuota 记录quota数据
 	RecordQuota(modelName string, quotaInfo *QuotaInfo) error
 }
 
-// SwitchStorage 模型切换专用存储接口  
+// SwitchStorage 模型切换专用存储接口
 type SwitchStorage interface {
 	HistoryStorage
-	
+
 	// RecordSwitch 记录模型切换
 	RecordSwitch(from, to string, duration time.Duration, err error) error
-	
+
 	// GetRecentSwitches 获取最近的切换记录
 	GetRecentSwitches(timeWindow time.Duration) ([]*SwitchHistoryEntry, error)
 }
@@ -64,7 +64,7 @@ type SwitchStorage interface {
 type FileLockManager interface {
 	// WithLock 使用写锁执行操作
 	WithLock(lockFile string, operation func() error) error
-	
+
 	// WithReadLock 使用读锁执行操作
 	WithReadLock(lockFile string, operation func() error) error
 }
@@ -73,13 +73,13 @@ type FileLockManager interface {
 type Logger interface {
 	// Info 信息日志
 	Info(msg string, args ...any)
-	
+
 	// Warn 警告日志
 	Warn(msg string, args ...any)
-	
+
 	// Error 错误日志
 	Error(msg string, args ...any)
-	
+
 	// Debug 调试日志
 	Debug(msg string, args ...any)
 }
@@ -90,7 +90,7 @@ type Logger interface {
 type ModelSwitcher interface {
 	// Switch 切换模型
 	Switch(fromModel, toModel string) error
-	
+
 	// GetCurrentModel 获取当前模型
 	GetCurrentModel() (string, error)
 }
@@ -99,7 +99,7 @@ type ModelSwitcher interface {
 type QuotaMonitor interface {
 	// GetQuota 获取quota信息（支持协商机制）
 	GetQuota(modelName string, timeWindow time.Duration) (*QuotaInfo, error)
-	
+
 	// GetQuotaWithSource 获取quota和来源信息
 	GetQuotaWithSource(modelName string, timeWindow time.Duration) (*QuotaInfo, int, bool, error)
 }
@@ -108,13 +108,13 @@ type QuotaMonitor interface {
 type UIRenderer interface {
 	// ShowSuccess 显示成功消息
 	ShowSuccess(title, message string)
-	
+
 	// ShowError 显示错误消息
-	ShowError(title, message string) 
-	
+	ShowError(title, message string)
+
 	// ShowSpinner 显示进度指示器
 	ShowSpinner(message string) SpinnerController
-	
+
 	// ShowInfo 显示信息
 	ShowInfo(message string)
 }
@@ -123,10 +123,10 @@ type UIRenderer interface {
 type SpinnerController interface {
 	// Success 显示成功并停止
 	Success(message string)
-	
+
 	// Error 显示错误并停止
 	Error(message string)
-	
+
 	// Stop 停止指示器
 	Stop()
 }
@@ -137,13 +137,13 @@ type SpinnerController interface {
 type HistoryEntry interface {
 	// GetTimestamp 获取时间戳
 	GetTimestamp() time.Time
-	
+
 	// GetEventType 获取事件类型
 	GetEventType() string
-	
+
 	// GetProcessID 获取进程ID
 	GetProcessID() int
-	
+
 	// ToJSON 转换为JSON
 	ToJSON() ([]byte, error)
 }
@@ -152,7 +152,7 @@ type HistoryEntry interface {
 type CollaborationConfig interface {
 	// GetTimeWindow 获取协商时间窗口
 	GetTimeWindow() time.Duration
-	
+
 	// IsWithinWindow 检查是否在时间窗口内
 	IsWithinWindow(timestamp time.Time) bool
 }

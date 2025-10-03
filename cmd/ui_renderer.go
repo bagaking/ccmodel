@@ -28,7 +28,7 @@ func (renderer *CmduxUIRenderer) ShowSuccess(title, message string) {
 		TitleStyle(app.Theme().Success).
 		ContentStyle(app.Theme().Success).
 		BorderStyle(app.Theme().Success)
-	
+
 	app.Render(successBox)
 }
 
@@ -40,7 +40,7 @@ func (renderer *CmduxUIRenderer) ShowError(title, message string) {
 		TitleStyle(app.Theme().Error).
 		ContentStyle(app.Theme().Error).
 		BorderStyle(app.Theme().Error)
-	
+
 	app.Render(errorBox)
 }
 
@@ -48,7 +48,7 @@ func (renderer *CmduxUIRenderer) ShowError(title, message string) {
 func (renderer *CmduxUIRenderer) ShowSpinner(message string) SpinnerController {
 	spinner := ux.NewSpinner(ux.SpinnerDots).Color(app.Theme().Primary)
 	spinner.Start(message)
-	
+
 	return &CmduxSpinnerController{
 		spinner: spinner,
 		verbose: renderer.verbose,
@@ -73,7 +73,7 @@ func (controller *CmduxSpinnerController) Success(message string) {
 	// 显示加载动画一段时间，提升用户体验
 	time.Sleep(1 * time.Second)
 	controller.spinner.Success(message)
-	
+
 	// 输出空行，改善视觉效果
 	if controller.verbose {
 		app.Println("")

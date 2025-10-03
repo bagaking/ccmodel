@@ -25,9 +25,9 @@ type QuotaCache struct {
 
 // Global cache with mutex for thread safety
 var (
-	quotaCache     = make(map[string]*QuotaCache)
-	quotaCacheMux  = sync.RWMutex{}
-	cacheTimeout   = 30 * time.Second // Cache for 30 seconds
+	quotaCache    = make(map[string]*QuotaCache)
+	quotaCacheMux = sync.RWMutex{}
+	cacheTimeout  = 30 * time.Second // Cache for 30 seconds
 )
 
 // QuotaConfig represents the quota test configuration
@@ -82,7 +82,7 @@ func parseConfig(configFile string) (*QuotaConfig, error) {
 	}
 
 	jsonStr := string(data)
-	
+
 	// Try __ccmodel first, then __cc as shorthand
 	var ccmodelData gjson.Result
 	if result := gjson.Get(jsonStr, "__ccmodel"); result.Exists() {
@@ -190,14 +190,14 @@ func executeQuotaRequest(config *HTTPConfig, method string, timeout time.Duratio
 		if attempt > 0 {
 			time.Sleep(retryDelay)
 		}
-		
+
 		quotaInfo, err := performQuotaRequest(config, method, timeout, configJSON)
 		if err == nil {
 			return quotaInfo, nil
 		}
 		lastError = err
 	}
-	
+
 	return nil, lastError
 }
 
@@ -226,7 +226,7 @@ func performQuotaRequest(config *HTTPConfig, method string, timeout time.Duratio
 	if method == "POST" && config.Data != nil {
 		// Expand variables in the request using config JSON
 		expandedData := expandVariables(config.Data, configJSON)
-		
+
 		// Marshal the request data
 		requestData, err := json.Marshal(expandedData)
 		if err != nil {
@@ -251,7 +251,7 @@ func performQuotaRequest(config *HTTPConfig, method string, timeout time.Duratio
 	if config.Timeout != nil && *config.Timeout > 0 {
 		actualTimeout = time.Duration(*config.Timeout) * time.Second
 	}
-	
+
 	// Execute request
 	client := &http.Client{Timeout: actualTimeout}
 	resp, err := client.Do(req)
@@ -309,7 +309,7 @@ func getQuotaInfoWithTimeout(timeout time.Duration) (*QuotaInfo, error) {
 	if err != nil || currentModel == "none" || currentModel == "custom" {
 		return nil, nil
 	}
-	
+
 	// Use original model config file for quota info
 	return getQuotaInfoForModel(currentModel, timeout)
 }
@@ -318,12 +318,12 @@ func getQuotaInfoWithTimeout(timeout time.Duration) (*QuotaInfo, error) {
 func getQuotaInfoForModel(modelName string, timeout time.Duration) (*QuotaInfo, error) {
 	// Try to get recent data from history first (collaboration mechanism)
 	historyManager := getQuotaHistoryManager()
-	
+
 	// 对于一般quota查询，使用30秒的合理默认协商窗口
 	// 这提供了足够的时间让不同ccmodel实例共享数据，避免重复API调用
 	collaborationWindow := NewDefaultCollaborationTimeWindow()
 	timeWindow := collaborationWindow.CalculateWindow()
-	
+
 	if recentQuota, sourceEntry, err := historyManager.GetRecentQuotaFromHistory(modelName, timeWindow); err == nil && recentQuota != nil {
 		// Found recent data from another process, use it
 		if verbose {
@@ -331,7 +331,7 @@ func getQuotaInfoForModel(modelName string, timeout time.Duration) (*QuotaInfo, 
 		}
 		return recentQuota, nil
 	}
-	
+
 	// Check cache first
 	cacheKey := modelName
 	quotaCacheMux.RLock()
@@ -344,14 +344,14 @@ func getQuotaInfoForModel(modelName string, timeout time.Duration) (*QuotaInfo, 
 	quotaCacheMux.RUnlock()
 
 	configFile := filepath.Join(configDir, fmt.Sprintf("settings.%s.json", modelName))
-	
+
 	// Read raw config JSON
 	configData, err := os.ReadFile(configFile)
 	if err != nil {
 		return nil, err
 	}
 	configJSON := string(configData)
-	
+
 	config, err := parseConfig(configFile)
 	if err != nil {
 		return nil, err
@@ -461,8 +461,8 @@ func formatQuotaValue(value float64) string {
 	} else if value >= 1000 {
 		return fmt.Sprintf("%.3fK", value/1000)
 	} else {
-		if(value == float64(int(value))){
-			return fmt.Sprintf("%.0f", value)	
+		if value == float64(int(value)) {
+			return fmt.Sprintf("%.0f", value)
 		}
 		return fmt.Sprintf("%.3f", value)
 	}

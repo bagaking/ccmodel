@@ -98,7 +98,7 @@ ccmodel --help       → Show detailed help`
 	quotaResults := make(map[string]*QuotaInfo)
 	var wg sync.WaitGroup
 	var mu sync.Mutex
-	
+
 	for _, model := range models {
 		wg.Add(1)
 		go func(modelName string) {

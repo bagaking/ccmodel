@@ -10,19 +10,19 @@ import (
 
 // MockConfigStorage 配置存储的Mock实现
 type MockConfigStorage struct {
-	availableModels  []string
-	activeModel      string
-	loadModelError   error
-	saveConfigError  error
-	backupError      error
-	getActiveError   error
+	availableModels []string
+	activeModel     string
+	loadModelError  error
+	saveConfigError error
+	backupError     error
+	getActiveError  error
 }
 
 func (m *MockConfigStorage) LoadModel(modelName string) ([]byte, error) {
 	if m.loadModelError != nil {
 		return nil, m.loadModelError
 	}
-	
+
 	// 检查模型是否存在
 	for _, model := range m.availableModels {
 		if model == modelName {
@@ -80,7 +80,7 @@ func (m *MockSwitchStorage) RecordSwitch(from, to string, duration time.Duration
 	if m.recordSwitchError != nil {
 		return m.recordSwitchError
 	}
-	
+
 	m.switchRecords = append(m.switchRecords, SwitchRecord{
 		From:     from,
 		To:       to,
@@ -166,33 +166,33 @@ func TestModelSwitcher_Switch_Success(t *testing.T) {
 	mockSwitch := &MockSwitchStorage{}
 	mockUI := &MockUIRenderer{}
 	mockLogger := &MockLogger{}
-	
+
 	// 创建模型切换器
 	switcher := NewModelSwitcher(mockConfig, mockSwitch, mockUI, mockLogger)
-	
+
 	// 执行切换
 	err := switcher.Switch("model1", "model2")
-	
+
 	// 验证结果
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	
+
 	// 验证UI调用
 	if len(mockUI.successCalls) != 1 {
 		t.Errorf("Expected 1 success call, got %d", len(mockUI.successCalls))
 	}
-	
+
 	// 验证历史记录
 	if len(mockSwitch.switchRecords) != 1 {
 		t.Errorf("Expected 1 switch record, got %d", len(mockSwitch.switchRecords))
 	}
-	
+
 	record := mockSwitch.switchRecords[0]
 	if record.From != "model1" || record.To != "model2" {
 		t.Errorf("Expected switch from model1 to model2, got from %s to %s", record.From, record.To)
 	}
-	
+
 	if record.Error != nil {
 		t.Errorf("Expected no error in record, got %v", record.Error)
 	}
@@ -207,27 +207,27 @@ func TestModelSwitcher_Switch_ModelNotFound(t *testing.T) {
 	mockSwitch := &MockSwitchStorage{}
 	mockUI := &MockUIRenderer{}
 	mockLogger := &MockLogger{}
-	
+
 	switcher := NewModelSwitcher(mockConfig, mockSwitch, mockUI, mockLogger)
-	
+
 	// 尝试切换到不存在的模型
 	err := switcher.Switch("model1", "nonexistent")
-	
+
 	// 验证返回错误
 	if err == nil {
 		t.Error("Expected error for nonexistent model, got nil")
 	}
-	
+
 	// 验证UI显示错误
 	if len(mockUI.errorCalls) != 1 {
 		t.Errorf("Expected 1 error call, got %d", len(mockUI.errorCalls))
 	}
-	
+
 	// 验证历史记录记录了失败
 	if len(mockSwitch.switchRecords) != 1 {
 		t.Errorf("Expected 1 switch record, got %d", len(mockSwitch.switchRecords))
 	}
-	
+
 	record := mockSwitch.switchRecords[0]
 	if record.Error == nil {
 		t.Error("Expected error in switch record, got nil")
@@ -244,22 +244,22 @@ func TestModelSwitcher_Switch_BackupFailure(t *testing.T) {
 	mockSwitch := &MockSwitchStorage{}
 	mockUI := &MockUIRenderer{}
 	mockLogger := &MockLogger{}
-	
+
 	switcher := NewModelSwitcher(mockConfig, mockSwitch, mockUI, mockLogger)
-	
+
 	// 执行切换
 	err := switcher.Switch("model1", "model2")
-	
+
 	// 验证返回错误
 	if err == nil {
 		t.Error("Expected error for backup failure, got nil")
 	}
-	
+
 	// 验证日志记录了错误
 	if len(mockLogger.errorCalls) == 0 {
 		t.Error("Expected error log for backup failure, got none")
 	}
-	
+
 	// 验证历史记录记录了失败
 	record := mockSwitch.switchRecords[0]
 	if record.Error == nil {
@@ -277,17 +277,17 @@ func TestModelSwitcher_Switch_SaveConfigFailure(t *testing.T) {
 	mockSwitch := &MockSwitchStorage{}
 	mockUI := &MockUIRenderer{}
 	mockLogger := &MockLogger{}
-	
+
 	switcher := NewModelSwitcher(mockConfig, mockSwitch, mockUI, mockLogger)
-	
+
 	// 执行切换
 	err := switcher.Switch("model1", "model2")
-	
+
 	// 验证返回错误
 	if err == nil {
 		t.Error("Expected error for save failure, got nil")
 	}
-	
+
 	// 验证历史记录记录了失败
 	record := mockSwitch.switchRecords[0]
 	if record.Error == nil {
@@ -303,17 +303,17 @@ func TestModelSwitcher_GetCurrentModel(t *testing.T) {
 	mockSwitch := &MockSwitchStorage{}
 	mockUI := &MockUIRenderer{}
 	mockLogger := &MockLogger{}
-	
+
 	switcher := NewModelSwitcher(mockConfig, mockSwitch, mockUI, mockLogger)
-	
+
 	// 获取当前模型
 	currentModel, err := switcher.GetCurrentModel()
-	
+
 	// 验证结果
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	
+
 	if currentModel != "current-model" {
 		t.Errorf("Expected 'current-model', got %s", currentModel)
 	}
@@ -327,18 +327,18 @@ func TestSwitchCommand_Execute_SameModel(t *testing.T) {
 	mockSwitch := &MockSwitchStorage{}
 	mockUI := &MockUIRenderer{}
 	mockLogger := &MockLogger{}
-	
+
 	switcher := NewModelSwitcher(mockConfig, mockSwitch, mockUI, mockLogger)
 	command := NewSwitchCommand(switcher)
-	
+
 	// 尝试切换到相同模型
 	err := command.Execute("model1")
-	
+
 	// 验证返回错误
 	if err == nil {
 		t.Error("Expected error for switching to same model, got nil")
 	}
-	
+
 	// 验证没有记录切换历史
 	if len(mockSwitch.switchRecords) != 0 {
 		t.Errorf("Expected no switch records, got %d", len(mockSwitch.switchRecords))
@@ -354,18 +354,18 @@ func TestSwitchCommand_Execute_Success(t *testing.T) {
 	mockSwitch := &MockSwitchStorage{}
 	mockUI := &MockUIRenderer{}
 	mockLogger := &MockLogger{}
-	
+
 	switcher := NewModelSwitcher(mockConfig, mockSwitch, mockUI, mockLogger)
 	command := NewSwitchCommand(switcher)
-	
+
 	// 执行命令
 	err := command.Execute("model2")
-	
+
 	// 验证成功
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
 	}
-	
+
 	// 验证切换被记录
 	if len(mockSwitch.switchRecords) != 1 {
 		t.Errorf("Expected 1 switch record, got %d", len(mockSwitch.switchRecords))

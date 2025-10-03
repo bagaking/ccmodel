@@ -25,14 +25,15 @@ var currentCmd = &cobra.Command{
 
 // ModelStatus represents the current model status for JSON output
 type ModelStatus struct {
-	Model        string            `json:"model"`
-	ConfigPath   string            `json:"config_path"`
-	FileSize     int64             `json:"file_size,omitempty"`
-	LastModified string            `json:"last_modified,omitempty"`
-	IsActive     bool              `json:"is_active"`
-	IsCustom     bool              `json:"is_custom"`
-	Quota        *QuotaStatusJSON  `json:"quota,omitempty"`
-	Error        string            `json:"error,omitempty"`
+	Model        string           `json:"model"`
+	ConfigPath   string           `json:"config_path"`
+	FileSize     int64            `json:"file_size,omitempty"`
+	LastModified string           `json:"last_modified,omitempty"`
+	IsActive     bool             `json:"is_active"`
+	IsCustom     bool             `json:"is_custom"`
+	Quota        *QuotaStatusJSON `json:"quota,omitempty"`
+	Sessions     *SessionOverview `json:"sessions,omitempty"`
+	Error        string           `json:"error,omitempty"`
 }
 
 // QuotaStatusJSON represents quota info optimized for JSON output
@@ -116,7 +117,7 @@ func (msc *ModelStatusCollector) collectQuotaInfo(status *ModelStatus) error {
 		if quotaInfo.Error != nil {
 			return quotaInfo.Error
 		}
-		
+
 		percent := 0.0
 		if quotaInfo.Total > 0 {
 			percent = (quotaInfo.Used / quotaInfo.Total) * 100
@@ -138,11 +139,11 @@ func init() {
 
 func runCurrent(cmd *cobra.Command, args []string) error {
 	collector := NewModelStatusCollector(configDir)
-	
+
 	if jsonOutput {
 		return handleJSONOutput(collector)
 	}
-	
+
 	return handleUIOutput(collector)
 }
 
@@ -152,11 +153,15 @@ func handleJSONOutput(collector *ModelStatusCollector) error {
 	if err != nil {
 		return fmt.Errorf("failed to collect status: %v", err)
 	}
-	
+
+	if sessionErr := collector.collectSessionInfo(status); sessionErr != nil {
+		appendStatusError(status, fmt.Sprintf("session info: %v", sessionErr))
+	}
+
 	return outputJSON(status)
 }
 
-// handleUIOutput 处理传统 UI 输出逻辑  
+// handleUIOutput 处理传统 UI 输出逻辑
 func handleUIOutput(collector *ModelStatusCollector) error {
 	status, err := collector.CollectStatus()
 	if err != nil {
@@ -265,11 +270,11 @@ func parseLastModified(isoTime string) string {
 	if isoTime == "" {
 		return ""
 	}
-	
+
 	if t, err := time.Parse("2006-01-02T15:04:05Z", isoTime); err == nil {
 		return t.Format("2006-01-02 15:04:05")
 	}
-	
+
 	return isoTime // fallback
 }
 
@@ -281,6 +286,18 @@ func renderQuotaInfoFromJSON(quota *QuotaStatusJSON) {
 		Error: nil,
 	}
 	renderQuotaInfo(quotaInfo)
+}
+
+func appendStatusError(status *ModelStatus, message string) {
+	if message == "" || status == nil {
+		return
+	}
+
+	if status.Error != "" {
+		status.Error = fmt.Sprintf("%s; %s", status.Error, message)
+	} else {
+		status.Error = message
+	}
 }
 
 // outputJSON outputs the status as JSON

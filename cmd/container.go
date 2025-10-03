@@ -12,23 +12,23 @@ type Container struct {
 	// 基础设施层
 	logger      Logger
 	lockManager FileLockManager
-	
+
 	// 存储层
 	configStorage ConfigStorage
 	quotaStorage  QuotaStorage
 	switchStorage SwitchStorage
-	
+
 	// 业务层
 	modelSwitcher ModelSwitcher
 	quotaMonitor  QuotaMonitor
-	
+
 	// UI层
 	uiRenderer UIRenderer
-	
+
 	// 配置
 	configDir string
 	verbose   bool
-	
+
 	// 初始化控制
 	once sync.Once
 }
@@ -56,12 +56,12 @@ func (c *Container) initializeDependencies() error {
 	c.logger = NewDefaultLogger(c.verbose)
 	c.lockManager = NewFileLockManager(c.logger)
 	c.uiRenderer = NewCmduxUIRenderer(c.verbose)
-	
+
 	// 2. 存储层
 	c.configStorage = NewFileConfigStorage(c.configDir, c.lockManager, c.logger)
 	c.quotaStorage = c.createQuotaStorage()
 	c.switchStorage = c.createSwitchStorage()
-	
+
 	// 3. 业务层
 	c.modelSwitcher = NewModelSwitcher(
 		c.configStorage,
@@ -70,7 +70,7 @@ func (c *Container) initializeDependencies() error {
 		c.logger,
 	)
 	c.quotaMonitor = c.createQuotaMonitor()
-	
+
 	return nil
 }
 
@@ -81,17 +81,17 @@ func (c *Container) createQuotaStorage() QuotaStorage {
 		historyDir:        filepath.Join(c.configDir, "ccmodel", "quota_history"),
 		heartbeatInterval: 3 * time.Minute,
 	}
-	
+
 	// 初始化存储目录
 	if err := manager.Initialize(); err != nil {
 		c.logger.Warn("Failed to initialize quota storage", "error", err)
 	}
-	
+
 	// 自动清理旧日志
 	if err := manager.CleanupOldLogs(30); err != nil {
 		c.logger.Warn("Failed to cleanup old quota logs", "error", err)
 	}
-	
+
 	return &QuotaStorageAdapter{
 		manager:     manager,
 		lockManager: c.lockManager,
@@ -104,17 +104,17 @@ func (c *Container) createSwitchStorage() SwitchStorage {
 	manager := &SwitchHistoryManager{
 		historyDir: filepath.Join(c.configDir, "ccmodel", "switch_history"),
 	}
-	
+
 	// 初始化存储目录
 	if err := manager.Initialize(); err != nil {
 		c.logger.Warn("Failed to initialize switch storage", "error", err)
 	}
-	
+
 	// 自动清理旧日志
 	if err := manager.CleanupOldLogs(30); err != nil {
 		c.logger.Warn("Failed to cleanup old switch logs", "error", err)
 	}
-	
+
 	return &SwitchStorageAdapter{
 		manager:     manager,
 		lockManager: c.lockManager,
@@ -244,7 +244,7 @@ func (dqm *DefaultQuotaMonitor) GetQuotaWithSource(modelName string, timeWindow 
 	if err != nil || quotaInfo == nil {
 		return nil, 0, false, err
 	}
-	
+
 	return quotaInfo, sourceEntry.ProcessID, true, nil
 }
 

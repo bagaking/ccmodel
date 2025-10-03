@@ -14,28 +14,28 @@ import (
 
 var (
 	topRefreshInterval = 5 * time.Second
-	topRunning        = false
-	topMutex          sync.RWMutex
-	forceColorScheme  = ""  // Manual override for color scheme
+	topRunning         = false
+	topMutex           sync.RWMutex
+	forceColorScheme   = "" // Manual override for color scheme
 )
 
 // Terminal color constants - compatible with both light and dark backgrounds
 const (
-	ColorReset     = "\033[0m"
-	ColorBold      = "\033[1m"
-	ColorDim       = "\033[2m"
-	
+	ColorReset = "\033[0m"
+	ColorBold  = "\033[1m"
+	ColorDim   = "\033[2m"
+
 	// High contrast colors that work on both light and dark backgrounds
-	ColorBlue      = "\033[34m"  // Blue - good contrast on both
-	ColorCyan      = "\033[36m"  // Cyan - good contrast on both
-	ColorGreen     = "\033[32m"  // Green - readable on both
-	ColorYellow    = "\033[33m"  // Yellow - readable on both
-	ColorRed       = "\033[31m"  // Red - readable on both
-	ColorMagenta   = "\033[35m"  // Magenta - good contrast
-	
+	ColorBlue    = "\033[34m" // Blue - good contrast on both
+	ColorCyan    = "\033[36m" // Cyan - good contrast on both
+	ColorGreen   = "\033[32m" // Green - readable on both
+	ColorYellow  = "\033[33m" // Yellow - readable on both
+	ColorRed     = "\033[31m" // Red - readable on both
+	ColorMagenta = "\033[35m" // Magenta - good contrast
+
 	// Bright variants for better visibility
 	ColorBrightBlue    = "\033[94m"
-	ColorBrightCyan    = "\033[96m" 
+	ColorBrightCyan    = "\033[96m"
 	ColorBrightGreen   = "\033[92m"
 	ColorBrightYellow  = "\033[93m"
 	ColorBrightRed     = "\033[91m"
@@ -54,7 +54,7 @@ const (
 // Global background detection cache
 var (
 	detectedBackground BackgroundType = BackgroundUnknown
-	backgroundDetected = false
+	backgroundDetected                = false
 	backgroundMutex    sync.Mutex
 )
 
@@ -62,25 +62,25 @@ var (
 func detectTerminalBackground() BackgroundType {
 	backgroundMutex.Lock()
 	defer backgroundMutex.Unlock()
-	
+
 	if backgroundDetected {
 		return detectedBackground
 	}
-	
+
 	// Method 1: Try to query terminal background color using OSC 11
 	if bg := queryTerminalBackground(); bg != BackgroundUnknown {
 		detectedBackground = bg
 		backgroundDetected = true
 		return bg
 	}
-	
+
 	// Method 2: Check environment variables for known terminals
 	if bg := detectFromEnvironment(); bg != BackgroundUnknown {
 		detectedBackground = bg
 		backgroundDetected = true
 		return bg
 	}
-	
+
 	// Method 3: Fallback - assume dark background (safer default)
 	detectedBackground = BackgroundDark
 	backgroundDetected = true
@@ -96,7 +96,7 @@ func queryTerminalBackground() BackgroundType {
 		}
 		return BackgroundUnknown
 	}
-	
+
 	// Try to open /dev/tty for direct terminal communication
 	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
 	if err != nil {
@@ -106,25 +106,25 @@ func queryTerminalBackground() BackgroundType {
 		return BackgroundUnknown
 	}
 	defer tty.Close()
-	
+
 	// Save terminal state to restore later (to prevent escape sequences from showing)
 	// Note: This is a simplified approach - a full implementation would save/restore terminal modes
-	
-	// Query background color using OSC 11 (Operating System Command)  
+
+	// Query background color using OSC 11 (Operating System Command)
 	// This asks terminal to report its background color
 	query := "\033]11;?\033\\"
-	
+
 	// Set a short timeout for the query
 	responseChan := make(chan string, 1)
 	errorChan := make(chan error, 1)
-	
+
 	go func() {
 		// Write query
 		if _, err := tty.Write([]byte(query)); err != nil {
 			errorChan <- err
 			return
 		}
-		
+
 		// Read response with larger buffer to capture full response
 		buffer := make([]byte, 200)
 		n, err := tty.Read(buffer)
@@ -132,10 +132,10 @@ func queryTerminalBackground() BackgroundType {
 			errorChan <- err
 			return
 		}
-		
+
 		responseChan <- string(buffer[:n])
 	}()
-	
+
 	// Wait for response with 300ms timeout (shorter to avoid blocking)
 	select {
 	case response := <-responseChan:
@@ -143,7 +143,7 @@ func queryTerminalBackground() BackgroundType {
 		if verbose {
 			// Clean the response for display (replace control chars)
 			cleanResponse := strings.ReplaceAll(response, "\033", "^[")
-			cleanResponse = strings.ReplaceAll(cleanResponse, "\007", "^G") 
+			cleanResponse = strings.ReplaceAll(cleanResponse, "\007", "^G")
 			fmt.Printf("Debug: OSC 11 response: %q\n", cleanResponse)
 		}
 		return parseBackgroundResponse(response)
@@ -165,55 +165,55 @@ func parseBackgroundResponse(response string) BackgroundType {
 	// OSC 11 response format: \033]11;rgb:RRRR/GGGG/BBBB\033\\
 	// or \033]11;rgb:RR/GG/BB\033\\
 	// The response you saw: ^[]11;rgb:1818/1818/1818^[\
-	
+
 	if !strings.Contains(response, "rgb:") {
 		return BackgroundUnknown
 	}
-	
+
 	// Extract RGB values - handle multiple possible terminators
 	parts := strings.Split(response, "rgb:")
 	if len(parts) < 2 {
 		return BackgroundUnknown
 	}
-	
+
 	rgbPart := parts[1]
 	// Remove various possible terminators: \033\, \007, \033\\, etc.
-	rgbPart = strings.Split(rgbPart, "\033")[0]  // Remove ESC sequences
-	rgbPart = strings.Split(rgbPart, "\007")[0]  // Remove BEL (^G)
-	rgbPart = strings.Split(rgbPart, "\\")[0]    // Remove backslash terminators
-	
+	rgbPart = strings.Split(rgbPart, "\033")[0] // Remove ESC sequences
+	rgbPart = strings.Split(rgbPart, "\007")[0] // Remove BEL (^G)
+	rgbPart = strings.Split(rgbPart, "\\")[0]   // Remove backslash terminators
+
 	rgbComponents := strings.Split(rgbPart, "/")
-	
+
 	if len(rgbComponents) < 3 {
 		return BackgroundUnknown
 	}
-	
+
 	// Parse RGB values (can be 2-digit or 4-digit hex)
 	r, err1 := parseHexComponent(rgbComponents[0])
-	g, err2 := parseHexComponent(rgbComponents[1])  
+	g, err2 := parseHexComponent(rgbComponents[1])
 	b, err3 := parseHexComponent(rgbComponents[2])
-	
+
 	if err1 != nil || err2 != nil || err3 != nil {
 		// Debug: log the parsing error if verbose mode is on
 		if verbose {
-			fmt.Printf("Debug: Failed to parse RGB components: %s -> R:%s G:%s B:%s\n", 
+			fmt.Printf("Debug: Failed to parse RGB components: %s -> R:%s G:%s B:%s\n",
 				rgbPart, rgbComponents[0], rgbComponents[1], rgbComponents[2])
 		}
 		return BackgroundUnknown
 	}
-	
+
 	// Calculate luminance using standard formula
 	// Y = 0.299*R + 0.587*G + 0.114*B
 	luminance := 0.299*float64(r) + 0.587*float64(g) + 0.114*float64(b)
-	
+
 	// Debug info if verbose
 	if verbose {
 		fmt.Printf("Debug: Parsed RGB(%d,%d,%d) -> Luminance: %.1f\n", r, g, b, luminance)
 	}
-	
-	// For your case: rgb:1818/1818/1818 
+
+	// For your case: rgb:1818/1818/1818
 	// This is 24/24/24 in decimal (very dark gray)
-	// Threshold: if luminance > 128 (mid-point of 0-255), consider it light  
+	// Threshold: if luminance > 128 (mid-point of 0-255), consider it light
 	if luminance > 128 {
 		return BackgroundLight
 	} else {
@@ -254,11 +254,11 @@ func detectFromEnvironment() BackgroundType {
 			}
 		}
 	}
-	
+
 	// Check terminal program names
 	term := strings.ToLower(os.Getenv("TERM_PROGRAM"))
 	termName := strings.ToLower(os.Getenv("TERM"))
-	
+
 	// For iTerm2 and other terminals, we can't assume background color
 	// since users often customize them. Better to rely on OSC 11 query first.
 	// Only use these as last resort fallbacks.
@@ -269,30 +269,30 @@ func detectFromEnvironment() BackgroundType {
 	case strings.Contains(termName, "xterm") && os.Getenv("XDG_SESSION_TYPE") == "x11":
 		// Most X11 xterms default to white/light
 		return BackgroundLight
-	// Note: Removed iTerm2 assumption since users frequently customize it
+		// Note: Removed iTerm2 assumption since users frequently customize it
 	}
-	
+
 	return BackgroundUnknown
 }
 
 // Adaptive color schemes based on background type
 type ColorScheme struct {
-	Header     string
-	SubHeader  string
-	TableHead  string
-	Border     string
-	Success    string
-	Warning    string
-	Error      string
-	Active     string
-	Controls   string
-	Secondary  string
+	Header    string
+	SubHeader string
+	TableHead string
+	Border    string
+	Success   string
+	Warning   string
+	Error     string
+	Active    string
+	Controls  string
+	Secondary string
 }
 
 // getColorScheme returns appropriate colors based on detected background or manual override
 func getColorScheme() *ColorScheme {
 	var bg BackgroundType
-	
+
 	// Check for manual override first
 	switch strings.ToLower(forceColorScheme) {
 	case "light":
@@ -305,21 +305,21 @@ func getColorScheme() *ColorScheme {
 		// Invalid option, fall back to detection
 		bg = detectTerminalBackground()
 	}
-	
+
 	switch bg {
 	case BackgroundLight:
 		// Optimized for light backgrounds - use ONLY black for maximum contrast and readability
 		return &ColorScheme{
-			Header:    "\033[30m" + ColorBold,     // Black, bold - maximum contrast on white
-			SubHeader: "\033[30m",                 // Black - high contrast
-			TableHead: "\033[30m" + ColorBold,     // Black, bold for table headers  
-			Border:    "\033[30m",                 // Black for borders
-			Success:   "\033[30m",                 // Black for normal status (most readable)
-			Warning:   "\033[30m" + ColorBold,     // Black bold for warnings (readable)
-			Error:     "\033[30m" + ColorBold,     // Black bold for errors (readable)
-			Active:    "\033[30m" + ColorBold,     // Black bold for active (most contrast)
-			Controls:  "\033[30m",                 // Black for controls text
-			Secondary: "\033[90m",                 // Dark gray for secondary info
+			Header:    "\033[30m" + ColorBold, // Black, bold - maximum contrast on white
+			SubHeader: "\033[30m",             // Black - high contrast
+			TableHead: "\033[30m" + ColorBold, // Black, bold for table headers
+			Border:    "\033[30m",             // Black for borders
+			Success:   "\033[30m",             // Black for normal status (most readable)
+			Warning:   "\033[30m" + ColorBold, // Black bold for warnings (readable)
+			Error:     "\033[30m" + ColorBold, // Black bold for errors (readable)
+			Active:    "\033[30m" + ColorBold, // Black bold for active (most contrast)
+			Controls:  "\033[30m",             // Black for controls text
+			Secondary: "\033[90m",             // Dark gray for secondary info
 		}
 	case BackgroundDark:
 		// Optimized for dark backgrounds - use brighter colors
@@ -391,12 +391,12 @@ var topCmd = &cobra.Command{
 }
 
 type ModelQuotaStatus struct {
-	Name      string
-	IsActive  bool
-	QuotaInfo *QuotaInfo
-	Error     error
-	LastCheck time.Time
-	SourcePID int    // Process ID that provided this data
+	Name          string
+	IsActive      bool
+	QuotaInfo     *QuotaInfo
+	Error         error
+	LastCheck     time.Time
+	SourcePID     int  // Process ID that provided this data
 	IsFromHistory bool // Whether data came from history collaboration
 }
 
@@ -435,7 +435,7 @@ func runTop(cmd *cobra.Command, args []string) error {
 	// 验证并调整刷新间隔，确保不小于10秒
 	validatedInterval := ValidateMinimumInterval(topRefreshInterval)
 	if validatedInterval != topRefreshInterval && verbose {
-		fmt.Printf("Warning: Refresh interval adjusted from %v to %v (minimum 10s required)\n", 
+		fmt.Printf("Warning: Refresh interval adjusted from %v to %v (minimum 10s required)\n",
 			topRefreshInterval, validatedInterval)
 	}
 
@@ -531,14 +531,14 @@ func (m *TopMonitor) fetchQuotaData() {
 
 func (m *TopMonitor) fetchAllQuotas() {
 	var wg sync.WaitGroup
-	
+
 	for _, model := range m.models {
 		wg.Add(1)
 		go func(modelName string) {
 			defer wg.Done()
-			
+
 			quotaInfo, sourcePID, fromHistory, err := m.getQuotaWithSource(modelName, 8*time.Second)
-			
+
 			m.statusMutex.Lock()
 			if status := m.statuses[modelName]; status != nil {
 				status.QuotaInfo = quotaInfo
@@ -550,7 +550,7 @@ func (m *TopMonitor) fetchAllQuotas() {
 			m.statusMutex.Unlock()
 		}(model)
 	}
-	
+
 	wg.Wait()
 }
 
@@ -558,18 +558,18 @@ func (m *TopMonitor) fetchAllQuotas() {
 func (m *TopMonitor) getQuotaWithSource(modelName string, timeout time.Duration) (*QuotaInfo, int, bool, error) {
 	// Try to get recent data from history first
 	historyManager := getQuotaHistoryManager()
-	
+
 	// 使用刷新间隔作为时间窗口，实现基于检测周期的协商机制
 	// 确保间隔不小于10秒，满足最小检测间隔要求
 	validatedInterval := ValidateMinimumInterval(m.refreshRate)
 	collaborationWindow := NewCollaborationTimeWindow(validatedInterval)
 	timeWindow := collaborationWindow.CalculateWindow()
-	
+
 	if recentQuota, sourceEntry, err := historyManager.GetRecentQuotaFromHistory(modelName, timeWindow); err == nil && recentQuota != nil {
 		// Found recent data from another process
 		return recentQuota, sourceEntry.ProcessID, true, nil
 	}
-	
+
 	// Get fresh data ourselves
 	quotaInfo, err := getQuotaInfoForModel(modelName, timeout)
 	return quotaInfo, os.Getpid(), false, err
@@ -613,7 +613,7 @@ func (m *TopMonitor) switchToModel(modelName string) {
 		m.statusMutex.Lock()
 		oldCurrent := m.currentModel
 		m.currentModel = modelName
-		
+
 		// Update active status
 		if oldStatus := m.statuses[oldCurrent]; oldStatus != nil {
 			oldStatus.IsActive = false
@@ -628,19 +628,19 @@ func (m *TopMonitor) switchToModel(modelName string) {
 func (m *TopMonitor) render() {
 	// Move cursor to top-left
 	fmt.Print("\033[H")
-	
+
 	m.statusMutex.RLock()
 	defer m.statusMutex.RUnlock()
-	
+
 	// Render header
 	m.renderHeader()
-	
+
 	// Render model table
 	m.renderModelTable()
-	
+
 	// Render footer with controls
 	m.renderFooter()
-	
+
 	// Clear rest of screen
 	fmt.Print("\033[J")
 }
@@ -648,7 +648,7 @@ func (m *TopMonitor) render() {
 func (m *TopMonitor) renderHeader() {
 	now := time.Now().Format("15:04:05")
 	scheme := getColorScheme()
-	
+
 	// Determine color scheme info for display
 	colorSchemeInfo := ""
 	switch strings.ToLower(forceColorScheme) {
@@ -668,11 +668,11 @@ func (m *TopMonitor) renderHeader() {
 			colorSchemeInfo = " [Colors: Auto/Unknown]"
 		}
 	}
-	
+
 	headerLine1 := fmt.Sprintf("ccmodel top - %s", now)
-	headerLine2 := fmt.Sprintf("Refresh: %v | Active: %s | Models: %d%s", 
+	headerLine2 := fmt.Sprintf("Refresh: %v | Active: %s | Models: %d%s",
 		m.refreshRate, m.currentModel, len(m.models), colorSchemeInfo)
-	
+
 	// Use adaptive colors based on background detection
 	if app != nil {
 		// Use cmdux if available, but fallback to adaptive colors
@@ -687,17 +687,17 @@ func (m *TopMonitor) renderHeader() {
 		fmt.Printf("%s%s%s\n", scheme.Header, headerLine1, ColorReset)
 		fmt.Printf("%s%s%s\n", scheme.SubHeader, headerLine2, ColorReset)
 	}
-	
+
 	fmt.Println()
 }
 
 func (m *TopMonitor) renderModelTable() {
 	scheme := getColorScheme()
-	
+
 	// Header - added SOURCE column
-	header := fmt.Sprintf("%-3s %-2s %-12s %-18s %-8s %-12s %-8s %-8s", 
+	header := fmt.Sprintf("%-3s %-2s %-12s %-18s %-8s %-12s %-8s %-8s",
 		"#", "ST", "MODEL", "QUOTA USAGE", "PERCENT", "LAST CHECK", "STATUS", "SOURCE")
-	
+
 	if app != nil {
 		fmt.Println(app.Theme().Header.Sprint(header))
 		fmt.Println(app.Theme().Border.Sprint(strings.Repeat("-", 90)))
@@ -706,42 +706,42 @@ func (m *TopMonitor) renderModelTable() {
 		fmt.Printf("%s%s%s\n", scheme.TableHead, header, ColorReset)
 		fmt.Printf("%s%s%s\n", scheme.Border, strings.Repeat("-", 90), ColorReset)
 	}
-	
+
 	// Sort models for consistent display
 	sortedModels := make([]string, len(m.models))
 	copy(sortedModels, m.models)
 	sort.Strings(sortedModels)
-	
+
 	for i, model := range sortedModels {
 		status := m.statuses[model]
 		if status == nil {
 			continue
 		}
-		
+
 		m.renderModelRow(i+1, status)
 	}
-	
+
 	fmt.Println()
 }
 
 func (m *TopMonitor) renderModelRow(index int, status *ModelQuotaStatus) {
 	scheme := getColorScheme()
-	
+
 	// Status indicator
 	statusIndicator := "○"
 	if status.IsActive {
 		statusIndicator = "★"
 	}
-	
+
 	// Format quota information
 	quotaDisplay := "-"
 	percentDisplay := "-"
 	rowStatus := "OK"
-	
+
 	// Determine colors based on status and quota
-	var rowColor string = ""  // Default: no special color
+	var rowColor string = "" // Default: no special color
 	var percent float64 = 0
-	
+
 	if status.Error != nil {
 		quotaDisplay = "ERROR"
 		rowStatus = "ERR"
@@ -750,7 +750,7 @@ func (m *TopMonitor) renderModelRow(index int, status *ModelQuotaStatus) {
 		quotaDisplay = formatQuotaForTopTable(status.QuotaInfo)
 		percent = (status.QuotaInfo.Used / status.QuotaInfo.Total) * 100
 		percentDisplay = fmt.Sprintf("%.1f%%", percent)
-		
+
 		// Color based on usage percentage using adaptive scheme
 		if percent >= 90 {
 			rowColor = scheme.Error
@@ -762,10 +762,10 @@ func (m *TopMonitor) renderModelRow(index int, status *ModelQuotaStatus) {
 			rowColor = scheme.Success
 		}
 	}
-	
+
 	// Last check time
 	lastCheck := status.LastCheck.Format("15:04:05")
-	
+
 	// Source information
 	sourceDisplay := "self"
 	if status.IsFromHistory {
@@ -775,7 +775,7 @@ func (m *TopMonitor) renderModelRow(index int, status *ModelQuotaStatus) {
 			sourceDisplay = fmt.Sprintf("p%d", status.SourcePID)
 		}
 	}
-	
+
 	// Format row with appropriate coloring
 	if app != nil {
 		// Use cmdux if available
@@ -791,11 +791,11 @@ func (m *TopMonitor) renderModelRow(index int, status *ModelQuotaStatus) {
 		} else {
 			colorFunc = app.Theme().Primary.Sprint
 		}
-		
+
 		row := fmt.Sprintf("%-3d %-2s %-12s %-18s %-8s %-12s %-8s %-8s",
-			index, statusIndicator, status.Name, quotaDisplay, 
+			index, statusIndicator, status.Name, quotaDisplay,
 			percentDisplay, lastCheck, rowStatus, sourceDisplay)
-		
+
 		if status.IsActive {
 			// Highlight active model
 			fmt.Printf("%s%s%s\n", ColorBold, colorFunc(row), ColorReset)
@@ -805,9 +805,9 @@ func (m *TopMonitor) renderModelRow(index int, status *ModelQuotaStatus) {
 	} else {
 		// Use adaptive colors based on background detection
 		row := fmt.Sprintf("%-3d %-2s %-12s %-18s %-8s %-12s %-8s %-8s",
-			index, statusIndicator, status.Name, quotaDisplay, 
+			index, statusIndicator, status.Name, quotaDisplay,
 			percentDisplay, lastCheck, rowStatus, sourceDisplay)
-		
+
 		if status.IsActive {
 			// Bold + adaptive active color for active model
 			fmt.Printf("%s%s%s%s\n", ColorBold, scheme.Active, row, ColorReset)
@@ -824,13 +824,13 @@ func (m *TopMonitor) renderModelRow(index int, status *ModelQuotaStatus) {
 func (m *TopMonitor) renderFooter() {
 	scheme := getColorScheme()
 	fmt.Println()
-	
+
 	helpText := []string{
 		"Controls: [1-9] Switch Model | [r] Refresh | [q/ESC] Quit | [h/?] Help",
 		"",
 		"Models are automatically refreshed every " + m.refreshRate.String(),
 	}
-	
+
 	for i, line := range helpText {
 		if app != nil {
 			fmt.Println(app.Theme().Secondary.Sprint(line))
@@ -872,7 +872,7 @@ func (m *TopMonitor) setupRawInput() error {
 			}
 		}
 	}()
-	
+
 	return nil
 }
 

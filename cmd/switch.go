@@ -26,16 +26,16 @@ func runSwitch(cmd *cobra.Command, args []string) error {
 
 func switchModel(model string) error {
 	startTime := time.Now()
-	
+
 	// 获取当前模型用于历史记录
 	fromModel, _ := getCurrentModel()
 	if fromModel == "" {
 		fromModel = "none"
 	}
-	
+
 	// 获取切换历史管理器
 	switchHistory := getSwitchHistoryManager()
-	
+
 	// 延迟记录切换结果（成功或失败）
 	var switchError error
 	defer func() {
@@ -44,7 +44,7 @@ func switchModel(model string) error {
 			fmt.Printf("Warning: Failed to record switch history: %v\n", recordErr)
 		}
 	}()
-	
+
 	sourceFile := filepath.Join(configDir, fmt.Sprintf("settings.%s.json", model))
 	targetFile := filepath.Join(configDir, "settings.json")
 	// 将backup目录统一放在ccmodel目录下，便于集中管理
