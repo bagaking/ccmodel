@@ -40,6 +40,7 @@ func init() {
 	rootCmd.AddCommand(switchCmd)
 	rootCmd.AddCommand(backupCmd)
 	rootCmd.AddCommand(completionCmd)
+	rootCmd.AddCommand(execCmd)
 	// Note: demo command removed as requested
 }
 

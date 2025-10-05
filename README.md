@@ -51,6 +51,9 @@ ccmodel current --json
 # Switch to a different model
 ccmodel <model_name>
 
+# Launch Claude CLI with session tracking (pass flags after --)
+ccmodel exec claude -- --help
+
 # Interactive real-time monitoring
 ccmodel top
 ```
@@ -124,9 +127,27 @@ ccmodel top [--interval 15s] [--colors auto|light|dark]
 | `ccmodel list` | - | List all available model configurations | ❌ |
 | `ccmodel current` | `status`, `whoami` | Show current active model status | ✅ `--json` |
 | `ccmodel switch <model>` | `<model>` | Switch to specified model | ❌ |
+| `ccmodel exec <target>` | - | Proxy launch for Claude/Codex CLIs with session recording | ❌ |
 | `ccmodel top` | `monitor`, `watch` | Interactive real-time monitoring dashboard | ❌ |
 | `ccmodel backup` | - | Backup current configuration | ❌ |
 | `ccmodel completion` | - | Generate shell completion scripts | ❌ |
+
+### Proxy Execution Sessions
+
+Use `ccmodel exec` to launch the native Claude or Codex CLI while ccmodel records the run:
+
+```bash
+# Launch Claude and forward flags after --
+ccmodel exec claude -- --workspace my-project
+
+# Launch Codex (Cursor) CLI with custom path override
+CCMODEL_EXEC_CODEX=/Applications/Cursor.app/Contents/MacOS/codex \
+  ccmodel exec codex -- --reset
+```
+
+- All proxy sessions are stored under `~/.claude/ccmodel/exec_sessions/`.
+- Metadata includes command line, working directory, active model, and exit status to help restore runs.
+- Override the binary with `CCMODEL_EXEC_CLAUDE` or `CCMODEL_EXEC_CODEX` when the executable is outside `$PATH`.
 
 ### Screenshots
 

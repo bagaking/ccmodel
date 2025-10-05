@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(go run:*)",
+      "Bash(go build:*)",
+      "Bash(./ccmodel-test completion:*)",
+      "Bash(/Users/bytedance/bin/ccmodel completion:*)",
+      "Bash(git log:*)",
+      "Bash(./ccmodel-clean completion:*)",
+      "Bash(cp:*)",
+      "Bash(./ccmodel:*)",
+      "Bash(go install:*)",
+      "Bash(ccmodel:*)",
+      "Bash(mkdir:*)",
+      "Bash(go mod:*)",
+      "Bash(rm:*)",
+      "Bash(mv:*)",
+      "mcp__serena__check_onboarding_performed",
+      "mcp__serena__read_memory",
+      "mcp__serena__list_dir",
+      "Bash(curl:*)",
+      "Bash(time curl:*)"
+    ],
+    "deny": [],
+    "additionalDirectories": [
+      "/Users/bytedance/go/bin"
+    ]
+  }
+}
