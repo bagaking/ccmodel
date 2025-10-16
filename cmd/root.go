@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"sort"
 
+	execcmd "github.com/bagaking/ccmodel/cmd/execcmd"
 	"github.com/bagaking/cmdux"
 	"github.com/spf13/cobra"
 )
@@ -40,7 +41,12 @@ func init() {
 	rootCmd.AddCommand(switchCmd)
 	rootCmd.AddCommand(backupCmd)
 	rootCmd.AddCommand(completionCmd)
-	rootCmd.AddCommand(execCmd)
+	rootCmd.AddCommand(execcmd.NewCommand(execcmd.Dependencies{
+		ConfigDir:       func() string { return configDir },
+		Verbose:         func() bool { return verbose },
+		GetCurrentModel: getCurrentModel,
+		FileChecksum:    fileChecksum,
+	}))
 	// Note: demo command removed as requested
 }
 

@@ -1,15 +1,13 @@
-package cmd
+package execcmd
 
 import (
-	"bytes"
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
-
-	"github.com/spf13/cobra"
 )
 
 func TestShellQuote(t *testing.T) {
@@ -36,23 +34,42 @@ func TestBuildCommandLine(t *testing.T) {
 
 func TestInitializeExecSession(t *testing.T) {
 	tempDir := t.TempDir()
-	originalConfigDir := configDir
-	configDir = tempDir
-	t.Cleanup(func() { configDir = originalConfigDir })
-
 	settingsPath := filepath.Join(tempDir, "settings.json")
 	if err := os.WriteFile(settingsPath, []byte(`{"model":"test"}`), 0o644); err != nil {
 		t.Fatalf("failed to create settings file: %v", err)
 	}
 
 	baseTime := time.Date(2024, 10, 12, 15, 4, 5, 0, time.UTC)
-	originalNow := nowFunc
 	counter := 0
-	nowFunc = func() time.Time {
-		defer func() { counter++ }()
-		return baseTime.Add(time.Duration(counter) * time.Second)
+
+	r := newRunner(Dependencies{
+		ConfigDir: func() string { return tempDir },
+		Verbose:   func() bool { return false },
+		GetCurrentModel: func() (string, error) {
+			return "claude-sonnet", nil
+		},
+		FileChecksum: func(path string) (string, error) {
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return "", err
+			}
+			sum := md5.Sum(data)
+			return hex.EncodeToString(sum[:]), nil
+		},
+		Now: func() time.Time {
+			defer func() { counter++ }()
+			return baseTime.Add(time.Duration(counter) * time.Second)
+		},
+		LookPath: func(name string) (string, error) {
+			return "/usr/bin/" + name, nil
+		},
+		Exit: func(int) {},
+	})
+
+	workDir := filepath.Join(tempDir, "project")
+	if err := os.MkdirAll(workDir, 0o755); err != nil {
+		t.Fatalf("failed to create work dir: %v", err)
 	}
-	t.Cleanup(func() { nowFunc = originalNow })
 
 	target := &execTarget{
 		Name:        "claude",
@@ -61,18 +78,13 @@ func TestInitializeExecSession(t *testing.T) {
 		EnvVar:      "CCMODEL_EXEC_CLAUDE",
 	}
 
-	record, sessionPath, err := initializeExecSession(target, []string{"--foo", "bar"})
+	record, sessionPath, err := r.initializeExecSession(target, []string{"--foo", "bar"}, workDir)
 	if err != nil {
 		t.Fatalf("initializeExecSession failed: %v", err)
 	}
 
-	if record.ID == "" {
-		t.Fatal("expected session ID to be set")
-	}
-
-	expectedDir := filepath.Join(tempDir, execSessionDirName)
-	if !strings.HasPrefix(sessionPath, expectedDir) {
-		t.Fatalf("expected session path under %s, got %s", expectedDir, sessionPath)
+	if record.WorkingDir != workDir {
+		t.Fatalf("expected working dir %s, got %s", workDir, record.WorkingDir)
 	}
 
 	data, err := os.ReadFile(sessionPath)
@@ -94,27 +106,53 @@ func TestInitializeExecSession(t *testing.T) {
 	}
 }
 
-func TestExecuteProxyCommandExitCode(t *testing.T) {
+func TestExecuteRunDirect(t *testing.T) {
 	tempDir := t.TempDir()
-	originalConfigDir := configDir
-	configDir = tempDir
-	t.Cleanup(func() { configDir = originalConfigDir })
+	settingsPath := filepath.Join(tempDir, "settings.json")
+	if err := os.WriteFile(settingsPath, []byte(`{"model":"test"}`), 0o644); err != nil {
+		t.Fatalf("failed to create settings file: %v", err)
+	}
 
-	scriptPath := filepath.Join(tempDir, "claude-script.sh")
+	scriptPath := filepath.Join(tempDir, "codex-script.sh")
 	script := "#!/bin/sh\nexit 3\n"
 	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
 		t.Fatalf("failed to write script: %v", err)
 	}
 
-	t.Setenv("CCMODEL_EXEC_CLAUDE", scriptPath)
+	r := newRunner(Dependencies{
+		ConfigDir: func() string { return tempDir },
+		Verbose:   func() bool { return false },
+		GetCurrentModel: func() (string, error) {
+			return "codex-test", nil
+		},
+		FileChecksum: func(path string) (string, error) {
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return "", err
+			}
+			sum := md5.Sum(data)
+			return hex.EncodeToString(sum[:]), nil
+		},
+		Now: func() time.Time { return time.Date(2024, 10, 12, 0, 0, 0, 0, time.UTC) },
+		LookPath: func(name string) (string, error) {
+			switch name {
+			case "codex":
+				return scriptPath, nil
+			case "tmux":
+				return "", os.ErrNotExist
+			default:
+				return "/usr/bin/" + name, nil
+			}
+		},
+		Exit: func(int) {},
+	})
 
-	originalNow := nowFunc
-	nowFunc = func() time.Time { return time.Date(2024, 10, 12, 0, 0, 0, 0, time.UTC) }
-	t.Cleanup(func() { nowFunc = originalNow })
-
-	exitCode, err := executeProxyCommand("claude", []string{})
+	exitCode, err := r.executeRun("codex", nil, runOptions{
+		UseTmux:             false,
+		AllowDirectFallback: true,
+	})
 	if err != nil {
-		t.Fatalf("executeProxyCommand returned error: %v", err)
+		t.Fatalf("executeRun returned error: %v", err)
 	}
 	if exitCode != 3 {
 		t.Fatalf("expected exit code 3, got %d", exitCode)
@@ -146,25 +184,7 @@ func TestExecuteProxyCommandExitCode(t *testing.T) {
 	if stored.Status != "failed" {
 		t.Fatalf("expected status failed for non-zero exit, got %s", stored.Status)
 	}
-}
-
-func TestRunExecShowsHelpForFlagOnly(t *testing.T) {
-	var out bytes.Buffer
-	cmd := &cobra.Command{
-		Use:               execCmd.Use,
-		Short:             execCmd.Short,
-		Long:              execCmd.Long,
-		DisableFlagParsing: true,
-		SilenceUsage:      true,
-	}
-	cmd.SetOut(&out)
-	cmd.SetErr(&out)
-
-	err := runExec(cmd, []string{"-f"})
-	if err == nil {
-		t.Fatal("expected error for flag-only invocation")
-	}
-	if !strings.Contains(out.String(), "ccmodel exec") {
-		t.Fatalf("expected help output, got %q", out.String())
+	if stored.RunMode != runModeDirect {
+		t.Fatalf("expected run mode %s, got %s", runModeDirect, stored.RunMode)
 	}
 }
