@@ -92,7 +92,7 @@ ccmodel status --json  # Equivalent alias
 # Example output:
 {
   "model": "claude-sonnet",
-  "config_path": "~/.claude/settings.json",
+  "config_path": "<home>/.claude/settings.json",
   "file_size": 286,
   "last_modified": "2000-01-02T03:04:05Z",
   "is_active": true,
@@ -108,7 +108,8 @@ ccmodel status --json  # Equivalent alias
 The JSON shape is intended for integrations. Field names are lowercase
 snake_case, optional fields are omitted when unavailable, and quota or session
 collection errors are reported in the `error` field instead of changing the
-top-level schema.
+top-level schema. `config_path` is returned as an expanded path; examples use
+`<home>` as a placeholder for the user's home directory.
 
 ### Real-time Monitoring (Top Mode)
 
