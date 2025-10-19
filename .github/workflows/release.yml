@@ -22,7 +22,7 @@ jobs:
       run: go test -v ./...
     
     - name: Run linter
-      uses: golangci/golangci-lint-action@v3
+      uses: golangci/golangci-lint-action@v9
       with:
         version: latest
 
@@ -59,11 +59,14 @@ jobs:
         GOARCH: ${{ matrix.goarch }}
       run: |
         mkdir -p dist
-        BINARY_NAME=ccmodel
+        EXT=
         if [ "$GOOS" = "windows" ]; then
-          BINARY_NAME=ccmodel.exe
+          EXT=.exe
         fi
-        go build -ldflags="-s -w -X main.Version=${{ github.ref_name }} -X main.Commit=${{ github.sha }} -X main.Date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o dist/${BINARY_NAME}-${GOOS}-${GOARCH}${{ matrix.goos == 'windows' && '.exe' || '' }} .
+        OUTPUT="dist/ccmodel-${GOOS}-${GOARCH}${EXT}"
+        go build -ldflags="-s -w -X main.Version=${{ github.ref_name }} -X main.Commit=${{ github.sha }} -X main.Date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o "${OUTPUT}" .
+        test -e "${OUTPUT}"
+        ls -la dist
     
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
@@ -87,7 +90,7 @@ jobs:
         path: dist
     
     - name: Create Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v3
       with:
         files: dist/ccmodel-*/*
         body: |
