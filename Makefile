@@ -59,6 +59,7 @@ test: ## Run tests
 check: test ## Run the local pre-push verification gate
 	@echo "🔎 Checking staged and unstaged diff whitespace..."
 	@git diff --check
+	@git diff --cached --check
 
 fmt: ## Format code
 	@echo "🎨 Formatting code..."

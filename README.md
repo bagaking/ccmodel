@@ -230,7 +230,7 @@ make check
 |-------|--------|-------|
 | `go test ./...` | Go package tests | Fast unadorned test command for local loops |
 | `make test` | Go package tests with verbose output | Mirrors the test command used by CI |
-| `make check` | `make test` plus `git diff --check` | Preferred local pre-push gate |
+| `make check` | `make test` plus staged and unstaged `git diff --check` | Preferred local pre-push gate |
 | `make lint` | golangci-lint | Mirrors CI linting and installs the linter if missing |
 
 ## Contributing
