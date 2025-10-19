@@ -5,7 +5,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -156,28 +155,12 @@ func (flm *DefaultFileLockManager) isLockOwnedByCurrentProcess(lockFile string) 
 
 // isProcessRunning 检查指定PID的进程是否仍在运行
 func (flm *DefaultFileLockManager) isProcessRunning(pid int) bool {
-	// 使用kill(pid, 0)检查进程是否存在
-	// 这是一个非破坏性的检查方法
-	err := syscall.Kill(pid, 0)
-	if err == nil {
-		return true // 进程存在
+	running, err := isProcessRunning(pid)
+	if err != nil {
+		flm.logger.Warn("Unexpected error checking process", "pid", pid, "error", err)
 	}
 
-	// 检查具体的错误类型
-	if errno, ok := err.(syscall.Errno); ok {
-		switch errno {
-		case syscall.ESRCH:
-			return false // 进程不存在
-		case syscall.EPERM:
-			return true // 进程存在但没有权限发送信号
-		default:
-			// 其他错误，保守假设进程存在
-			flm.logger.Warn("Unexpected error checking process", "pid", pid, "error", err)
-			return true
-		}
-	}
-
-	return true // 默认假设进程存在
+	return running
 }
 
 // DefaultLogger 默认日志实现

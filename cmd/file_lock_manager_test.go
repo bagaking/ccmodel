@@ -262,6 +262,19 @@ func TestDefaultFileLockManager_LockContentFormat(t *testing.T) {
 	}
 }
 
+func TestDefaultFileLockManager_IsProcessRunning(t *testing.T) {
+	mockLogger := &MockLogger{}
+	lockManager := NewFileLockManager(mockLogger).(*DefaultFileLockManager)
+
+	if !lockManager.isProcessRunning(os.Getpid()) {
+		t.Error("Current process should be reported as running")
+	}
+
+	if lockManager.isProcessRunning(0) {
+		t.Error("Zero PID should not be reported as running")
+	}
+}
+
 // TestDefaultFileLockManager_MaxRetriesExceeded 测试超过最大重试次数
 func TestDefaultFileLockManager_MaxRetriesExceeded(t *testing.T) {
 	tempDir, err := os.MkdirTemp("", "lock_test_")
