@@ -19,7 +19,7 @@ GOMOD=$(GOCMD) mod
 DIST_DIR=dist
 BUILD_DIR=build
 
-.PHONY: all build clean test install uninstall fmt lint release help
+.PHONY: all build clean test check install uninstall fmt lint release help
 
 all: test build
 
@@ -55,6 +55,10 @@ build-all: ## Build for all platforms
 test: ## Run tests
 	@echo "🧪 Running tests..."
 	@$(GOTEST) -v ./...
+
+check: test ## Run the local pre-push verification gate
+	@echo "🔎 Checking staged and unstaged diff whitespace..."
+	@git diff --check
 
 fmt: ## Format code
 	@echo "🎨 Formatting code..."

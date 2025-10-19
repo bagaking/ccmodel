@@ -131,7 +131,7 @@ ccmodel top [--interval 15s] [--colors auto|light|dark]
 | Command | Aliases | Description | JSON Support |
 |---------|---------|-------------|--------------|
 | `ccmodel` | - | Show welcome screen and quick start guide | ❌ |
-| `ccmodel list` | - | List all available model configurations | ❌ |
+| `ccmodel list` | `ls` | List all available model configurations | ❌ |
 | `ccmodel current` | `status`, `whoami` | Show current active model status | ✅ `--json` |
 | `ccmodel switch <model>` | `<model>` | Switch to specified model | ❌ |
 | `ccmodel exec <target>` | - | Proxy launch for Claude/Codex CLIs with session recording | ❌ |
@@ -198,6 +198,7 @@ The project includes comprehensive development tooling via Make:
 make help         # List available Make targets
 make dev          # Run in development mode
 make test         # Run all tests  
+make check        # Run local pre-push verification
 make fmt          # Format Go code
 make lint         # Run golangci-lint
 make quick-test   # Smoke test with a temporary sample config
@@ -216,14 +217,21 @@ make uninstall    # Remove from /usr/local/bin
 make release      # Prepare release with all binaries
 ```
 
-The pull request gate runs `go test -v ./...` and `golangci-lint`. For a local
-pre-push check, run:
+The pull request gate runs `go test -v ./...` and `golangci-lint`. For the
+same deterministic checks that do not require installing lint tooling, run:
 
 ```bash
 go test ./...
 make test
-git diff --check
+make check
 ```
+
+| Check | Covers | Notes |
+|-------|--------|-------|
+| `go test ./...` | Go package tests | Fast unadorned test command for local loops |
+| `make test` | Go package tests with verbose output | Mirrors the test command used by CI |
+| `make check` | `make test` plus `git diff --check` | Preferred local pre-push gate |
+| `make lint` | golangci-lint | Mirrors CI linting and installs the linter if missing |
 
 ## Contributing
 
