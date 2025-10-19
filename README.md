@@ -92,7 +92,7 @@ ccmodel status --json  # Equivalent alias
 # Example output:
 {
   "model": "claude-sonnet",
-  "config_path": "/Users/user/.claude/settings.json", 
+  "config_path": "~/.claude/settings.json",
   "file_size": 286,
   "last_modified": "2025-09-07T23:58:25Z",
   "is_active": true,
@@ -163,7 +163,7 @@ CCMODEL_EXEC_CODEX=/Applications/Cursor.app/Contents/MacOS/codex \
 │ 1 │ ★      │ k2         │ 296B │ Jul 19 01:41 │ 150/500 (30%)   │ ACTIVE │
 │ 2 │ ○      │ claude     │ 286B │ Jul 19 01:56 │ -               │        │
 ╰───┴────────┴────────────┴──────┴──────────────┴─────────────────┴────────╯
-📁  Config Path: /Users/bytedance/.claude
+📁  Config Path: ~/.claude
 📊  Total Models: 2
 ```
  
