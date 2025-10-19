@@ -2,6 +2,9 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -369,5 +372,61 @@ func TestSwitchCommand_Execute_Success(t *testing.T) {
 	// 验证切换被记录
 	if len(mockSwitch.switchRecords) != 1 {
 		t.Errorf("Expected 1 switch record, got %d", len(mockSwitch.switchRecords))
+	}
+}
+
+func TestSwitchModel_BackupPreservesRawCurrentConfig(t *testing.T) {
+	tempDir := t.TempDir()
+	previousConfigDir := configDir
+	previousApp := app
+	previousVerbose := verbose
+	t.Cleanup(func() {
+		configDir = previousConfigDir
+		app = previousApp
+		verbose = previousVerbose
+	})
+
+	configDir = tempDir
+	app = nil
+	verbose = false
+	initConfig()
+
+	currentConfig := []byte("{invalid json with __cc that must stay in backup")
+	if err := os.WriteFile(filepath.Join(tempDir, "settings.json"), currentConfig, 0644); err != nil {
+		t.Fatalf("os.WriteFile(settings.json) error = %v, want nil", err)
+	}
+
+	modelConfig := []byte(`{"model":"target","__cc":{"quota":"removed"}}`)
+	if err := os.WriteFile(filepath.Join(tempDir, "settings.target.json"), modelConfig, 0644); err != nil {
+		t.Fatalf("os.WriteFile(settings.target.json) error = %v, want nil", err)
+	}
+
+	if err := switchModel("target"); err != nil {
+		t.Fatalf("switchModel(%q) error = %v, want nil", "target", err)
+	}
+
+	backupDir := filepath.Join(tempDir, "ccmodel", "backups")
+	entries, err := os.ReadDir(backupDir)
+	if err != nil {
+		t.Fatalf("os.ReadDir(%q) error = %v, want nil", backupDir, err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("os.ReadDir(%q) entries = %d, want 1", backupDir, len(entries))
+	}
+
+	backupData, err := os.ReadFile(filepath.Join(backupDir, entries[0].Name()))
+	if err != nil {
+		t.Fatalf("os.ReadFile(%q) error = %v, want nil", entries[0].Name(), err)
+	}
+	if string(backupData) != string(currentConfig) {
+		t.Errorf("switchModel(%q) backup = %q, want %q", "target", backupData, currentConfig)
+	}
+
+	activeData, err := os.ReadFile(filepath.Join(tempDir, "settings.json"))
+	if err != nil {
+		t.Fatalf("os.ReadFile(settings.json) error = %v, want nil", err)
+	}
+	if strings.Contains(string(activeData), "__cc") {
+		t.Errorf("switchModel(%q) active config = %q, want quota fields removed", "target", activeData)
 	}
 }

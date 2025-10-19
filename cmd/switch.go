@@ -77,7 +77,7 @@ func switchModel(model string) error {
 	// Backup current configuration if it exists
 	if _, err := os.Stat(targetFile); err == nil {
 		backupFile := filepath.Join(backupDir, fmt.Sprintf("settings.json.backup.%s", time.Now().Format("20060102_150405")))
-		if err := copyFile(targetFile, backupFile); err != nil {
+		if err := copyFileRaw(targetFile, backupFile); err != nil {
 			spinner.Error("Failed to backup current configuration")
 			switchError = fmt.Errorf("failed to backup current configuration: %v", err)
 			return switchError
@@ -139,6 +139,15 @@ func copyFile(src, dst string) error {
 	}
 
 	return os.WriteFile(dst, cleanData, 0644)
+}
+
+func copyFileRaw(src, dst string) error {
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(dst, data, 0644)
 }
 
 func getCurrentModel() (string, error) {
