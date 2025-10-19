@@ -19,7 +19,7 @@ GOMOD=$(GOCMD) mod
 DIST_DIR=dist
 BUILD_DIR=build
 
-.PHONY: all build clean test check install uninstall fmt lint release help
+.PHONY: all build clean test check install uninstall fmt lint release help quick-test
 
 all: test build
 
@@ -105,12 +105,21 @@ update-deps: ## Update dependencies
 	@$(GOGET) -u ./...
 
 # Development helpers
-quick-test: ## Quick test with sample configs
+quick-test: ## Hermetic smoke test with sample configs in a temporary HOME
 	@echo "🧪 Quick test..."
-	@mkdir -p test-configs
-	@echo '{"test": true}' > test-configs/settings.test.json
-	@CONFIG_DIR=test-configs $(GOCMD) run . list
-	@rm -rf test-configs
+	@tmp_home="$$(mktemp -d)"; \
+	trap 'rm -rf "$$tmp_home"' EXIT; \
+	mkdir -p "$$tmp_home/.claude"; \
+	printf '%s\n' '{"model":"demo","env":{"DEMO_TOKEN":"placeholder"},"__cc":{"note":"stripped by ccmodel switch"}}' > "$$tmp_home/.claude/settings.demo.json"; \
+	printf '%s\n' '{"model":"baseline"}' > "$$tmp_home/.claude/settings.baseline.json"; \
+	HOME="$$tmp_home" $(GOCMD) run . list >/dev/null; \
+	HOME="$$tmp_home" $(GOCMD) run . current --json >/dev/null; \
+	HOME="$$tmp_home" $(GOCMD) run . switch demo >/dev/null; \
+	test -f "$$tmp_home/.claude/settings.json"; \
+	! grep -q '__cc' "$$tmp_home/.claude/settings.json"; \
+	HOME="$$tmp_home" $(GOCMD) run . current --json | grep -q '"model": "demo"'; \
+	test ! -e test-configs; \
+	echo "✅ Quick test passed with a temporary HOME"
 
 install-dev: build ## Install for development
 	@echo "🔧 Installing for development..."
