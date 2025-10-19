@@ -94,15 +94,21 @@ ccmodel status --json  # Equivalent alias
   "model": "claude-sonnet",
   "config_path": "~/.claude/settings.json",
   "file_size": 286,
-  "last_modified": "2025-09-07T23:58:25Z",
+  "last_modified": "2000-01-02T03:04:05Z",
   "is_active": true,
   "is_custom": false,
   "quota": {
-    "Total": 1000.0,
-    "Used": 250.5
+    "total": 1000.0,
+    "used": 250.5,
+    "percent": 25.05
   }
 }
 ```
+
+The JSON shape is intended for integrations. Field names are lowercase
+snake_case, optional fields are omitted when unavailable, and quota or session
+collection errors are reported in the `error` field instead of changing the
+top-level schema.
 
 ### Real-time Monitoring (Top Mode)
 
@@ -188,10 +194,12 @@ The project includes comprehensive development tooling via Make:
 
 ```bash
 # Development
+make help         # List available Make targets
 make dev          # Run in development mode
 make test         # Run all tests  
 make fmt          # Format Go code
 make lint         # Run golangci-lint
+make quick-test   # Smoke test with a temporary sample config
 
 # Building
 make build        # Build binary for current platform
@@ -205,6 +213,15 @@ make uninstall    # Remove from /usr/local/bin
 
 # Release
 make release      # Prepare release with all binaries
+```
+
+The pull request gate runs `go test -v ./...` and `golangci-lint`. For a local
+pre-push check, run:
+
+```bash
+go test ./...
+make test
+git diff --check
 ```
 
 ## Contributing
