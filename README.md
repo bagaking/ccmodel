@@ -133,6 +133,35 @@ Example shape:
     "total": 1000,
     "used": 250.5,
     "percent": 25.05
+  },
+  "sessions": {
+    "claude_code": [
+      {
+        "id": "claude-session-id",
+        "workspace": "<workspace>/project",
+        "entry": "<first user input>",
+        "start_time": "2000-01-02T03:04:05Z",
+        "last_active": "2000-01-02T03:05:05Z",
+        "duration_seconds": 60,
+        "version": "1.0.0",
+        "branch": "main",
+        "origin": "claude_code"
+      }
+    ],
+    "codex": [
+      {
+        "id": "codex-session-id",
+        "workspace": "<workspace>/project",
+        "entry": "<first user input>",
+        "start_time": "2000-01-02T03:04:05Z",
+        "last_active": "2000-01-02T03:09:05Z",
+        "duration_seconds": 300,
+        "version": "0.1.0",
+        "branch": "main",
+        "origin": "codex_cli_rs",
+        "model": "gpt-5-codex"
+      }
+    ]
   }
 }
 ```
@@ -141,6 +170,14 @@ Field names use lowercase snake_case. Optional fields are omitted when
 unavailable, and quota or session collection errors are reported in `error`
 without changing the top-level shape. The example uses `<home>` as a placeholder
 for the user's home directory.
+
+`sessions` is optional and is collected only for JSON output. When present, it
+contains recent local session summaries from Claude Code project logs and Codex
+session logs. Each source is sampled independently, currently up to three recent
+entries. Session summaries are not privacy-scrubbed: they may include workspace
+paths, git branches, CLI versions, model names, origins, timestamps, durations,
+and the first user message as `entry`. Treat `current --json` as a local status
+contract, not a redacted telemetry format.
 
 ### Proxy execution
 
@@ -176,8 +213,18 @@ ccmodel exec watch --simple
 ccmodel exec attach
 ```
 
-`CCMODEL_EXEC_TMUX_SESSION` overrides the default tmux session name
-`ccmodel-exec`.
+Public `ccmodel exec run ...` and legacy `ccmodel exec <target> ...` first
+derive a directory-scoped tmux session name from the associated working
+directory. The shape is `ccmodel-<dir>-<hash>`, where `<dir>` is the sanitized
+directory basename and `<hash>` is derived from the absolute directory path.
+`--dir` changes that association. `--name` changes the tmux window name, not the
+tmux session name.
+
+`CCMODEL_EXEC_TMUX_SESSION` is only a fallback for tmux launch paths that reach
+the runner without an explicit session name. The public run paths already pass
+the directory-derived name, so this environment variable does not rename those
+sessions. If no explicit session name reaches the launcher and the environment
+variable is empty, the final fallback is `ccmodel-exec`.
 
 ### Quota macros
 

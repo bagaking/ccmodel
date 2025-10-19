@@ -40,7 +40,7 @@ JSON 中新增字段：
 | 字段          | 说明                                  |
 |---------------|---------------------------------------|
 | `run_mode`    | `tmux` 或 `direct`                    |
-| `tmux_session`| 使用的 tmux 会话名（默认 `ccmodel-exec`） |
+| `tmux_session`| 使用的 tmux 会话名；public `exec run`/`resume` 按目录生成 `ccmodel-<basename>-<hash>` |
 | `tmux_window` | 创建的窗口名                          |
 | `log_file`    | 对应日志文件路径                      |
 
@@ -123,9 +123,15 @@ ccmodel exec status logs
 
 | 名称                           | 作用                                   |
 |--------------------------------|----------------------------------------|
-| `CCMODEL_EXEC_TMUX_SESSION`    | 覆盖默认 tmux 会话名 (`ccmodel-exec`) |
+| `CCMODEL_EXEC_TMUX_SESSION`    | 仅在 tmux 启动路径没有显式 session name 时提供 fallback |
 | `CCMODEL_EXEC_CLAUDE` / `_CODEX` | 覆盖对应 CLI 的二进制路径             |
 | `TMUX`                         | 自动检测当前是否位于 tmux 内（决定 attach 行为） |
+
+边界：public `ccmodel exec run ...` 和兼容路径 `ccmodel exec <target> ...`
+会先从工作目录派生 session name，形如 `ccmodel-<basename>-<hash>`，再进入
+tmux 启动逻辑。`CCMODEL_EXEC_TMUX_SESSION` 不是这些 public run 路径的改名开关；
+它只在内部调用没有传入 `SessionName` 时生效。此时若环境变量也为空，最后才落到
+`ccmodel-exec`。
 
 ## 开发与测试提示
 
