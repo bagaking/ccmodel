@@ -38,7 +38,7 @@ func backupCurrent() error {
 	}
 
 	backupFile := filepath.Join(backupDir, fmt.Sprintf("settings.json.backup.%s", time.Now().Format("20060102_150405")))
-	if err := copyFile(currentFile, backupFile); err != nil {
+	if err := copyFileRaw(currentFile, backupFile); err != nil {
 		return fmt.Errorf("failed to create backup: %v", err)
 	}
 
