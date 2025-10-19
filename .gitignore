@@ -25,6 +25,7 @@ dist/
 # IDE files
 .vscode/
 .idea/
+.claude/settings.local.json
 *.swp
 *.swo
 *~
