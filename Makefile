@@ -105,19 +105,20 @@ update-deps: ## Update dependencies
 	@$(GOGET) -u ./...
 
 # Development helpers
-quick-test: ## Hermetic smoke test with sample configs in a temporary HOME
+quick-test: ## Local smoke test with sample configs in a temporary HOME
 	@echo "🧪 Quick test..."
-	@tmp_home="$$(mktemp -d)"; \
-	trap 'rm -rf "$$tmp_home"' EXIT; \
+	@set -eu; \
+	tmp_home="$$(mktemp -d)"; \
+	trap 'chmod -R u+w "$$tmp_home" 2>/dev/null || true; rm -rf "$$tmp_home"' EXIT; \
 	mkdir -p "$$tmp_home/.claude"; \
 	printf '%s\n' '{"model":"demo","env":{"DEMO_TOKEN":"placeholder"},"__cc":{"note":"stripped by ccmodel switch"}}' > "$$tmp_home/.claude/settings.demo.json"; \
 	printf '%s\n' '{"model":"baseline"}' > "$$tmp_home/.claude/settings.baseline.json"; \
-	HOME="$$tmp_home" $(GOCMD) run . list >/dev/null; \
-	HOME="$$tmp_home" $(GOCMD) run . current --json >/dev/null; \
-	HOME="$$tmp_home" $(GOCMD) run . switch demo >/dev/null; \
+	HOME="$$tmp_home" GOCACHE="$$tmp_home/.cache/go-build" GOMODCACHE="$$tmp_home/go/pkg/mod" GOPATH="$$tmp_home/go" $(GOCMD) run . list >/dev/null; \
+	HOME="$$tmp_home" GOCACHE="$$tmp_home/.cache/go-build" GOMODCACHE="$$tmp_home/go/pkg/mod" GOPATH="$$tmp_home/go" $(GOCMD) run . current --json >/dev/null; \
+	HOME="$$tmp_home" GOCACHE="$$tmp_home/.cache/go-build" GOMODCACHE="$$tmp_home/go/pkg/mod" GOPATH="$$tmp_home/go" $(GOCMD) run . switch demo >/dev/null; \
 	test -f "$$tmp_home/.claude/settings.json"; \
 	! grep -q '__cc' "$$tmp_home/.claude/settings.json"; \
-	HOME="$$tmp_home" $(GOCMD) run . current --json | grep -q '"model": "demo"'; \
+	HOME="$$tmp_home" GOCACHE="$$tmp_home/.cache/go-build" GOMODCACHE="$$tmp_home/go/pkg/mod" GOPATH="$$tmp_home/go" $(GOCMD) run . current --json | grep -q '"model": "demo"'; \
 	test ! -e test-configs; \
 	echo "✅ Quick test passed with a temporary HOME"
 

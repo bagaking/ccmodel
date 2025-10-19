@@ -147,7 +147,11 @@ ccmodel has a narrow filesystem contract:
 - the active Claude Code configuration is `$HOME/.claude/settings.json`
 - `ccmodel switch <model>` copies a cleaned model config into the active file
 - switching strips ccmodel-only macro fields such as `__cc` and `__ccmodel`
-- backups and history are written under `$HOME/.claude/ccmodel/`
+- `ccmodel backup` writes timestamped backups under `$HOME/.claude/backups/`
+- `ccmodel switch <model>` automatically backs up the previous active config
+  under `$HOME/.claude/ccmodel/backups/`
+- switch history, quota history, and proxy exec session records are written
+  under `$HOME/.claude/ccmodel/`
 
 ccmodel does not need network access for `list`, `current`, or `switch` unless
 a model file opts into quota macros that call an external endpoint.
@@ -248,17 +252,19 @@ make check
 
 ### Smoke Demo Without Real Claude Config
 
-`make quick-test` creates a temporary `HOME`, writes sample configs under that
-temporary `.claude` directory, runs the safe command subset, switches to a demo
-model, and verifies that ccmodel-only macro fields are not copied into
-`settings.json`.
+`make quick-test` creates a temporary `HOME`, isolates Go cache/module/GOPATH
+state under that temporary home, writes sample configs under the temporary
+`.claude` directory, runs the safe command subset from the current checkout,
+switches to a demo model, and verifies that ccmodel-only macro fields are not
+copied into `settings.json`.
 
 ```bash
 make quick-test
 ```
 
-The smoke demo never reads or writes the repository checkout, the user's real
-`$HOME/.claude`, or real provider credentials.
+The smoke demo does not write the user's real `$HOME/.claude`, does not create
+legacy `test-configs`, and does not use real provider credentials. It does read
+and run source from the current repository checkout via `go run .`.
 
 ## Contributing
 
