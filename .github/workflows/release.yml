@@ -99,10 +99,6 @@ jobs:
         body: |
           ## 🎉 New Release: ${{ github.ref_name }}
           
-          ### ✨ What's New
-          
-          Check out the [changelog](CHANGELOG.md) for detailed information.
-          
           ### 📥 Installation
           
           #### macOS

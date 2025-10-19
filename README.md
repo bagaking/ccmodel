@@ -1,6 +1,6 @@
 # ccmodel
 
-A powerful AI Model Configuration Manager built with [cmdux](https://github.com/bagaking/cmdux).
+ccmodel is a command-line manager for switching and inspecting AI model configurations, built with [cmdux](https://github.com/bagaking/cmdux).
 
 ## Features
 
@@ -217,7 +217,7 @@ make release      # Prepare release with all binaries
 
 ## License
 
-MIT License - see LICENSE file for details.
+MIT License - see [LICENSE](LICENSE) for details.
 
 ## Configuration Macros
 
