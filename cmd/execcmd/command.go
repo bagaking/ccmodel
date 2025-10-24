@@ -302,6 +302,7 @@ func (r *runner) buildWatchCommand() *cobra.Command {
 }
 
 func (r *runner) buildStatusCommand() *cobra.Command {
+	var jsonOutput bool
 	cmd := &cobra.Command{
 		Use:   "status [logs]",
 		Short: "Show tmux sessions (with window breadcrumbs) or log status",
@@ -319,9 +320,10 @@ func (r *runner) buildStatusCommand() *cobra.Command {
 			if len(args) > 0 {
 				scope = args[0]
 			}
-			return r.printStatus(cmd, scope)
+			return r.printStatus(cmd, scope, statusOptions{JSON: jsonOutput})
 		},
 	}
+	cmd.Flags().BoolVar(&jsonOutput, "json", false, "output session status as JSON")
 	return cmd
 }
 

@@ -1,6 +1,7 @@
 package execcmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,6 +12,10 @@ import (
 
 	"github.com/spf13/cobra"
 )
+
+type statusOptions struct {
+	JSON bool
+}
 
 func (r *runner) watchLogs(cmd *cobra.Command, mode string) error {
 	configDir := strings.TrimSpace(r.deps.ConfigDir())
@@ -58,16 +63,77 @@ func invokeStreaming(cmd *cobra.Command, name string, args ...string) error {
 	return proc.Run()
 }
 
-func (r *runner) printStatus(cmd *cobra.Command, scope string) error {
+func (r *runner) printStatus(cmd *cobra.Command, scope string, opts statusOptions) error {
 	scope = strings.TrimSpace(strings.ToLower(scope))
 	switch scope {
 	case "", "sessions":
+		if opts.JSON {
+			return r.printSessionsJSON(cmd)
+		}
 		return r.printSessionsAndWindows(cmd)
 	case "logs":
+		if opts.JSON {
+			return fmt.Errorf("status logs does not support --json")
+		}
 		return r.printLogStatus(cmd)
 	default:
 		return fmt.Errorf("unknown status scope %q", scope)
 	}
+}
+
+type execStatusJSON struct {
+	Sessions []execStatusSessionJSON `json:"sessions"`
+}
+
+type execStatusSessionJSON struct {
+	Name       string                 `json:"name"`
+	Dir        string                 `json:"dir"`
+	Running    bool                   `json:"running"`
+	HasHistory bool                   `json:"has_history"`
+	Windows    []execStatusWindowJSON `json:"windows"`
+}
+
+type execStatusWindowJSON struct {
+	Index string `json:"index,omitempty"`
+	Name  string `json:"name,omitempty"`
+	Path  string `json:"path,omitempty"`
+	Live  bool   `json:"live"`
+}
+
+func (r *runner) printSessionsJSON(cmd *cobra.Command) error {
+	summaries, err := r.collectSessionSummaries()
+	if err != nil {
+		return err
+	}
+
+	out := execStatusJSON{
+		Sessions: make([]execStatusSessionJSON, 0, len(summaries)),
+	}
+	for _, summary := range summaries {
+		session := execStatusSessionJSON{
+			Name:       summary.Name,
+			Dir:        summary.Dir,
+			Running:    summary.Running,
+			HasHistory: summary.HasHistory,
+			Windows:    make([]execStatusWindowJSON, 0, len(summary.Windows)),
+		}
+		for _, window := range summary.Windows {
+			session.Windows = append(session.Windows, execStatusWindowJSON{
+				Index: window.Index,
+				Name:  window.Name,
+				Path:  window.Path,
+				Live:  window.Live,
+			})
+		}
+		out.Sessions = append(out.Sessions, session)
+	}
+
+	data, err := json.MarshalIndent(out, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal status JSON: %w", err)
+	}
+	cmd.Println(string(data))
+	return nil
 }
 
 const (

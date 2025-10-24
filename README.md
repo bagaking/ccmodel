@@ -227,10 +227,16 @@ Useful exec commands:
 ```bash
 ccmodel exec resume --dir .
 ccmodel exec status
+ccmodel exec status --json
 ccmodel exec status logs
 ccmodel exec watch --simple
 ccmodel exec attach
 ```
+
+`ccmodel exec status --json` is the machine-readable session inventory for
+local status bars and scripts. It reports recorded tmux session names,
+directories, running/history flags, and known windows. The `logs` scope remains
+human-readable.
 
 Public `ccmodel exec run ...` and legacy `ccmodel exec <target> ...` first
 derive a directory-scoped tmux session name from the associated working

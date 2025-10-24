@@ -104,12 +104,15 @@ ccmodel exec watch --simple
 ### `ccmodel exec status [logs]`
 
 - 默认：以树状视图列出所有已记录的 session。`●` 表示 `[running]`，`○` 表示 `[archived]`（仅存在历史记录）；窗口会显示 `[live]` 或 `[saved]`。
+- `--json`：输出默认 session 视图的机器可读 JSON，包含 `sessions[].name`、`dir`、`running`、`has_history` 和 `windows[]`。
 - `logs`：列出日志文件及最近修改时间。
+- `status logs --json` 不支持；日志状态仍是面向人读的摘要。
 
 示例：
 
 ```bash
 ccmodel exec status
+ccmodel exec status --json
 ccmodel exec status logs
 ```
 
