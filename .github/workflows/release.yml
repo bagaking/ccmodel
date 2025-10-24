@@ -24,6 +24,9 @@ jobs:
     - name: Run local check
       run: make check
 
+    - name: Check committed patch whitespace
+      run: git show --check --format= HEAD
+
     - name: Run temporary HOME smoke
       run: make quick-test
     
