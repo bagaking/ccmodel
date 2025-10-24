@@ -21,8 +21,11 @@ jobs:
       with:
         go-version-file: go.mod
     
-    - name: Run tests
-      run: go test -v ./...
+    - name: Run local check
+      run: make check
+
+    - name: Run temporary HOME smoke
+      run: make quick-test
     
     - name: Run linter
       uses: golangci/golangci-lint-action@v9
