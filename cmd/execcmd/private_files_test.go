@@ -28,6 +28,31 @@ func TestPrivateFileHelpersUseUserOnlyPermissions(t *testing.T) {
 	assertMode(t, logFile, userOnlyFileMode)
 }
 
+func TestWriteUserOnlyFileReplacesExistingWideFileWithUserOnlyFile(t *testing.T) {
+	tempDir := t.TempDir()
+	privateFile := filepath.Join(tempDir, "session.json")
+	oldData := []byte(`{"working_dir":"old-workspace"}`)
+	newData := []byte(`{"working_dir":"new-workspace"}`)
+
+	if err := os.WriteFile(privateFile, oldData, 0o644); err != nil {
+		t.Fatalf("os.WriteFile(%q, oldData, 0644) error = %v, want nil", privateFile, err)
+	}
+	assertMode(t, privateFile, 0o644)
+
+	if err := writeUserOnlyFile(privateFile, newData); err != nil {
+		t.Fatalf("writeUserOnlyFile(%q, newData) error = %v, want nil", privateFile, err)
+	}
+
+	got, err := os.ReadFile(privateFile)
+	if err != nil {
+		t.Fatalf("os.ReadFile(%q) error = %v, want nil", privateFile, err)
+	}
+	if string(got) != string(newData) {
+		t.Errorf("writeUserOnlyFile(%q) content = %q, want %q", privateFile, got, newData)
+	}
+	assertMode(t, privateFile, userOnlyFileMode)
+}
+
 func TestSaveExecSessionRecordUsesUserOnlyPermissions(t *testing.T) {
 	tempDir := t.TempDir()
 	sessionPath := filepath.Join(tempDir, "session.json")
