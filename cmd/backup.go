@@ -33,7 +33,11 @@ func backupCurrent() error {
 		return fmt.Errorf("no current configuration to backup")
 	}
 
-	if err := os.MkdirAll(backupDir, 0755); err != nil {
+	if err := ensureUserOnlyDir(configDir); err != nil {
+		return fmt.Errorf("failed to create config directory: %v", err)
+	}
+
+	if err := ensureUserOnlyDir(backupDir); err != nil {
 		return fmt.Errorf("failed to create backup directory: %v", err)
 	}
 

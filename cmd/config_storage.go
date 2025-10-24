@@ -55,8 +55,12 @@ func (fcs *FileConfigStorage) SaveActiveConfig(data []byte) error {
 	targetFile := filepath.Join(fcs.configDir, "settings.json")
 	lockFile := targetFile + ".lock"
 
+	if err := ensureUserOnlyDir(fcs.configDir); err != nil {
+		return fmt.Errorf("failed to create config directory: %v", err)
+	}
+
 	return fcs.lockManager.WithLock(lockFile, func() error {
-		return os.WriteFile(targetFile, data, 0644)
+		return writeUserOnlyFile(targetFile, data)
 	})
 }
 
@@ -70,8 +74,15 @@ func (fcs *FileConfigStorage) BackupActiveConfig() error {
 		return nil // 没有配置文件需要备份
 	}
 
+	if err := ensureUserOnlyDir(fcs.configDir); err != nil {
+		return fmt.Errorf("failed to create config directory: %v", err)
+	}
+
 	// 确保备份目录存在
-	if err := os.MkdirAll(fcs.backupDir, 0755); err != nil {
+	if err := ensureUserOnlyDir(filepath.Join(fcs.configDir, "ccmodel")); err != nil {
+		return fmt.Errorf("failed to create ccmodel directory: %v", err)
+	}
+	if err := ensureUserOnlyDir(fcs.backupDir); err != nil {
 		return fmt.Errorf("failed to create backup directory: %v", err)
 	}
 
@@ -180,5 +191,5 @@ func (fcs *FileConfigStorage) copyFile(src, dst string) error {
 		return fmt.Errorf("failed to read source file: %v", err)
 	}
 
-	return os.WriteFile(dst, data, 0644)
+	return writeUserOnlyFile(dst, data)
 }

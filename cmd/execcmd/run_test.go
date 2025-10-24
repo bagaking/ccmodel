@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -104,6 +105,9 @@ func TestInitializeExecSession(t *testing.T) {
 	if stored.Status != "pending" {
 		t.Fatalf("expected status pending, got %s", stored.Status)
 	}
+	assertMode(t, filepath.Join(tempDir, "ccmodel"), userOnlyDirMode)
+	assertMode(t, filepath.Dir(sessionPath), userOnlyDirMode)
+	assertMode(t, sessionPath, userOnlyFileMode)
 }
 
 func TestExecuteRunDirect(t *testing.T) {
@@ -166,6 +170,7 @@ func TestExecuteRunDirect(t *testing.T) {
 	if len(entries) != 1 {
 		t.Fatalf("expected 1 session record, got %d", len(entries))
 	}
+	assertMode(t, sessionDir, userOnlyDirMode)
 
 	sessionPath := filepath.Join(sessionDir, entries[0].Name())
 	data, err := os.ReadFile(sessionPath)
@@ -187,4 +192,78 @@ func TestExecuteRunDirect(t *testing.T) {
 	if stored.RunMode != runModeDirect {
 		t.Fatalf("expected run mode %s, got %s", runModeDirect, stored.RunMode)
 	}
+	assertMode(t, sessionPath, userOnlyFileMode)
+}
+
+func TestRunWithTmuxPrecreatesUserOnlyLogFile(t *testing.T) {
+	tempDir := t.TempDir()
+	settingsPath := filepath.Join(tempDir, "settings.json")
+	if err := os.WriteFile(settingsPath, []byte(`{"model":"test"}`), 0o600); err != nil {
+		t.Fatalf("os.WriteFile(%q) error = %v, want nil", settingsPath, err)
+	}
+
+	tmuxPath := filepath.Join(tempDir, "tmux")
+	tmuxScript := "#!" + strings.Join([]string{"", "bin", "sh"}, string(os.PathSeparator)) + `
+case "$1" in
+  has-session) exit 0 ;;
+  new-window) printf '1\n'; exit 0 ;;
+  *) exit 0 ;;
+esac
+`
+	if err := os.WriteFile(tmuxPath, []byte(tmuxScript), 0o755); err != nil {
+		t.Fatalf("os.WriteFile(%q) error = %v, want nil", tmuxPath, err)
+	}
+
+	r := newRunner(Dependencies{
+		ConfigDir: func() string { return tempDir },
+		Verbose:   func() bool { return false },
+		GetCurrentModel: func() (string, error) {
+			return "codex-test", nil
+		},
+		FileChecksum: func(path string) (string, error) {
+			data, err := os.ReadFile(path)
+			if err != nil {
+				return "", err
+			}
+			sum := md5.Sum(data)
+			return hex.EncodeToString(sum[:]), nil
+		},
+		Now: func() time.Time { return time.Date(2024, 10, 12, 0, 0, 0, 0, time.UTC) },
+		LookPath: func(name string) (string, error) {
+			return strings.Join([]string{"", "usr", "bin", name}, string(os.PathSeparator)), nil
+		},
+		Exit: func(int) {},
+	})
+
+	target := &execTarget{
+		Name:        "codex",
+		Binary:      strings.Join([]string{"", "usr", "bin", "codex"}, string(os.PathSeparator)),
+		DisplayName: "codex",
+		EnvVar:      "CCMODEL_EXEC_CODEX",
+	}
+	record, sessionPath, err := r.initializeExecSession(target, []string{"--help"}, tempDir)
+	if err != nil {
+		t.Fatalf("initializeExecSession() error = %v, want nil", err)
+	}
+
+	code, err := r.runWithTmux(target, []string{"--help"}, record, sessionPath, tmuxPath, runOptions{
+		UseTmux:        true,
+		WindowName:     "codex-test",
+		AttachBehavior: attachNever,
+		WorkingDir:     tempDir,
+		SessionName:    "ccmodel-test",
+	})
+	if err != nil {
+		t.Fatalf("runWithTmux() error = %v, want nil", err)
+	}
+	if code != 0 {
+		t.Fatalf("runWithTmux() code = %d, want 0", code)
+	}
+
+	logDir := filepath.Join(tempDir, execSessionDirName, "logs")
+	assertMode(t, logDir, userOnlyDirMode)
+	if record.LogFile == "" {
+		t.Fatalf("runWithTmux() record.LogFile = %q, want non-empty", record.LogFile)
+	}
+	assertMode(t, record.LogFile, userOnlyFileMode)
 }

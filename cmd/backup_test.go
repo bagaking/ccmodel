@@ -33,6 +33,7 @@ func TestBackupCurrentPreservesRawCurrentConfig(t *testing.T) {
 	if len(entries) != 1 {
 		t.Fatalf("os.ReadDir(%q) entries = %d, want 1", backupDir, len(entries))
 	}
+	assertMode(t, backupDir, userOnlyDirMode)
 
 	backupFile := filepath.Join(backupDir, entries[0].Name())
 	backupData, err := os.ReadFile(backupFile)
@@ -42,4 +43,5 @@ func TestBackupCurrentPreservesRawCurrentConfig(t *testing.T) {
 	if !bytes.Equal(backupData, currentConfig) {
 		t.Errorf("backupCurrent() backup = %q, want %q", backupData, currentConfig)
 	}
+	assertMode(t, backupFile, userOnlyFileMode)
 }

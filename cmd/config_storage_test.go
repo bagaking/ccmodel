@@ -109,6 +109,7 @@ func TestFileConfigStorage_SaveActiveConfig(t *testing.T) {
 	if string(savedData) != string(testData) {
 		t.Errorf("Saved data doesn't match input. Expected %s, got %s", testData, savedData)
 	}
+	assertMode(t, settingsFile, userOnlyFileMode)
 
 	// 验证使用了文件锁
 	if len(mockLockManager.lockCalls) != 1 {
@@ -147,6 +148,7 @@ func TestFileConfigStorage_BackupActiveConfig(t *testing.T) {
 	if _, statErr := os.Stat(backupDir); os.IsNotExist(statErr) {
 		t.Error("Backup directory should have been created")
 	}
+	assertMode(t, backupDir, userOnlyDirMode)
 
 	// 验证备份文件被创建
 	files, err := os.ReadDir(backupDir)
@@ -168,6 +170,7 @@ func TestFileConfigStorage_BackupActiveConfig(t *testing.T) {
 	if string(backupData) != string(testData) {
 		t.Errorf("Backup data doesn't match original. Expected %s, got %s", testData, backupData)
 	}
+	assertMode(t, backupFile, userOnlyFileMode)
 }
 
 // TestFileConfigStorage_BackupActiveConfig_NoActiveConfig 测试无活动配置时的备份

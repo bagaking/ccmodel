@@ -26,6 +26,23 @@ or repository source code.
 - `ccmodel exec ...` launches Claude or Codex CLI processes and records local
   session metadata under `~/.claude/ccmodel/exec_sessions/`.
 
+## Local file privacy
+
+Files managed by ccmodel can contain provider configuration, API keys, quota
+responses, workspace paths, command lines, tmux logs, and session summaries.
+ccmodel treats those local files as private to the current OS user by default:
+
+- sensitive directories it creates use `0700`
+- active settings, backups, switch history, quota history, exec session JSON,
+  tmux logs, and lock files it creates use `0600`
+- tmux log files are created by ccmodel before tmux pipes output into them, so
+  shell append behavior does not widen their permissions
+
+Existing candidate files such as `settings.<model>.json` keep whatever
+permissions the user or editor assigned. Because those files may also contain
+credentials, keep `$HOME/.claude` and model candidate files readable only by
+your user account.
+
 ## Runtime contract
 
 `ccmodel` has a narrow filesystem contract:
@@ -63,9 +80,11 @@ go build -o ccmodel
 Create named model configs beside Claude Code's active config:
 
 ```bash
-mkdir -p ~/.claude
+install -d -m 700 ~/.claude
 cp ~/.claude/settings.json ~/.claude/settings.baseline.json
+chmod 600 ~/.claude/settings.baseline.json
 $EDITOR ~/.claude/settings.sonnet.json
+chmod 600 ~/.claude/settings.sonnet.json
 ```
 
 Switch and inspect:

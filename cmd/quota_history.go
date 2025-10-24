@@ -50,7 +50,16 @@ func (qh *QuotaHistoryManager) Initialize() error {
 	qh.mutex.Lock()
 	defer qh.mutex.Unlock()
 
-	if err := os.MkdirAll(qh.historyDir, 0755); err != nil {
+	ccmodelDir := filepath.Dir(qh.historyDir)
+	if filepath.Base(ccmodelDir) == "ccmodel" {
+		if err := ensureUserOnlyDir(filepath.Dir(ccmodelDir)); err != nil {
+			return fmt.Errorf("failed to create config directory: %v", err)
+		}
+		if err := ensureUserOnlyDir(ccmodelDir); err != nil {
+			return fmt.Errorf("failed to create ccmodel directory: %v", err)
+		}
+	}
+	if err := ensureUserOnlyDir(qh.historyDir); err != nil {
 		return fmt.Errorf("failed to create history directory: %v", err)
 	}
 
@@ -171,7 +180,7 @@ func (qh *QuotaHistoryManager) writeToLogFile(entry *QuotaHistoryEntry) error {
 	// Implement file locking to avoid concurrent write conflicts
 	if err := qh.withFileLock(lockFile, func() error {
 		// Append to file (create if doesn't exist)
-		file, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		file, err := openUserOnlyAppendFile(filename)
 		if err != nil {
 			return fmt.Errorf("failed to open log file: %v", err)
 		}
@@ -201,7 +210,7 @@ func (qh *QuotaHistoryManager) withFileLock(lockFile string, fn func() error) er
 
 	for attempt := 0; attempt < maxRetries; attempt++ {
 		// Try to create lock file exclusively
-		lock, err := os.OpenFile(lockFile, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
+		lock, err := createUserOnlyExclusiveFile(lockFile)
 		if err == nil {
 			// Successfully acquired lock
 			defer func() {

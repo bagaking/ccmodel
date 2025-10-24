@@ -108,9 +108,10 @@ update-deps: ## Update dependencies
 quick-test: ## Local smoke test with sample configs in a temporary HOME
 	@echo "🧪 Quick test..."
 	@set -eu; \
+	umask 077; \
 	tmp_home="$$(mktemp -d)"; \
 	trap 'chmod -R u+w "$$tmp_home" 2>/dev/null || true; rm -rf "$$tmp_home"' EXIT; \
-	mkdir -p "$$tmp_home/.claude"; \
+	mkdir -m 700 -p "$$tmp_home/.claude"; \
 	printf '%s\n' '{"model":"demo","env":{"DEMO_TOKEN":"placeholder"},"__cc":{"note":"stripped by ccmodel switch"}}' > "$$tmp_home/.claude/settings.demo.json"; \
 	printf '%s\n' '{"model":"baseline"}' > "$$tmp_home/.claude/settings.baseline.json"; \
 	HOME="$$tmp_home" GOCACHE="$$tmp_home/.cache/go-build" GOMODCACHE="$$tmp_home/go/pkg/mod" GOPATH="$$tmp_home/go" $(GOCMD) run . list >/dev/null; \

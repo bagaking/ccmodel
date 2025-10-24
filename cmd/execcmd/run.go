@@ -87,10 +87,13 @@ func (r *runner) runWithTmux(resolved *execTarget, targetArgs []string, record *
 	}
 
 	logDir := filepath.Join(strings.TrimSpace(r.deps.ConfigDir()), execSessionDirName, "logs")
-	if err := os.MkdirAll(logDir, 0o755); err != nil {
+	if err := ensureUserOnlyDir(logDir); err != nil {
 		return -1, fmt.Errorf("failed to create log directory: %w", err)
 	}
 	logFile := filepath.Join(logDir, record.ID+".log")
+	if err := createUserOnlyFile(logFile); err != nil {
+		return -1, fmt.Errorf("failed to create log file: %w", err)
+	}
 
 	if err := ensureTmuxSession(tmuxPath, sessionName); err != nil {
 		return -1, err

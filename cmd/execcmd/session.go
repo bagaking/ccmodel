@@ -93,7 +93,13 @@ func (r *runner) initializeExecSession(target *execTarget, args []string, workin
 	}
 
 	sessionDir := filepath.Join(configDir, execSessionDirName)
-	if err := os.MkdirAll(sessionDir, 0o755); err != nil {
+	if err := ensureUserOnlyDir(configDir); err != nil {
+		return nil, "", fmt.Errorf("failed to create config directory: %w", err)
+	}
+	if err := ensureUserOnlyDir(filepath.Join(configDir, "ccmodel")); err != nil {
+		return nil, "", fmt.Errorf("failed to create ccmodel directory: %w", err)
+	}
+	if err := ensureUserOnlyDir(sessionDir); err != nil {
 		return nil, "", fmt.Errorf("failed to create session directory: %w", err)
 	}
 
@@ -112,7 +118,7 @@ func saveExecSessionRecord(path string, record *execSessionRecord) error {
 	}
 
 	tempPath := path + ".tmp"
-	if err := os.WriteFile(tempPath, append(data, '\n'), 0o644); err != nil {
+	if err := writeUserOnlyFile(tempPath, append(data, '\n')); err != nil {
 		return err
 	}
 
@@ -120,7 +126,7 @@ func saveExecSessionRecord(path string, record *execSessionRecord) error {
 		_ = os.Remove(tempPath)
 		return err
 	}
-	return nil
+	return os.Chmod(path, userOnlyFileMode)
 }
 
 func buildCommandLine(binary string, args []string) string {

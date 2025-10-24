@@ -67,8 +67,19 @@ func switchModel(model string) error {
 	spinner := ux.NewSpinner(ux.SpinnerDots).Color(app.Theme().Primary)
 	spinner.Start(fmt.Sprintf("Switching to %s...", model))
 
+	if err := ensureUserOnlyDir(configDir); err != nil {
+		spinner.Error("Failed to create config directory")
+		switchError = fmt.Errorf("failed to create config directory: %v", err)
+		return switchError
+	}
+
 	// Create backup directory if it doesn't exist
-	if err := os.MkdirAll(backupDir, 0755); err != nil {
+	if err := ensureUserOnlyDir(filepath.Join(configDir, "ccmodel")); err != nil {
+		spinner.Error("Failed to create ccmodel directory")
+		switchError = fmt.Errorf("failed to create ccmodel directory: %v", err)
+		return switchError
+	}
+	if err := ensureUserOnlyDir(backupDir); err != nil {
 		spinner.Error("Failed to create backup directory")
 		switchError = fmt.Errorf("failed to create backup directory: %v", err)
 		return switchError
@@ -138,7 +149,7 @@ func copyFile(src, dst string) error {
 		return err
 	}
 
-	return os.WriteFile(dst, cleanData, 0644)
+	return writeUserOnlyFile(dst, cleanData)
 }
 
 func copyFileRaw(src, dst string) error {
@@ -147,7 +158,7 @@ func copyFileRaw(src, dst string) error {
 		return err
 	}
 
-	return os.WriteFile(dst, data, 0644)
+	return writeUserOnlyFile(dst, data)
 }
 
 func getCurrentModel() (string, error) {

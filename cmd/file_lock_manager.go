@@ -51,7 +51,7 @@ func (flm *DefaultFileLockManager) acquireLock(lockFile string) error {
 
 	for i := 0; i < maxRetries; i++ {
 		// 尝试创建锁文件
-		file, err := os.OpenFile(lockFile, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
+		file, err := createUserOnlyExclusiveFile(lockFile)
 		if err == nil {
 			// 成功创建锁文件，写入进程信息
 			processInfo := fmt.Sprintf("%d:%d", os.Getpid(), time.Now().Unix())

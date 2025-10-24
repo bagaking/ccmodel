@@ -43,7 +43,16 @@ func (sh *SwitchHistoryManager) Initialize() error {
 	sh.mutex.Lock()
 	defer sh.mutex.Unlock()
 
-	if err := os.MkdirAll(sh.historyDir, 0755); err != nil {
+	ccmodelDir := filepath.Dir(sh.historyDir)
+	if filepath.Base(ccmodelDir) == "ccmodel" {
+		if err := ensureUserOnlyDir(filepath.Dir(ccmodelDir)); err != nil {
+			return fmt.Errorf("failed to create config directory: %v", err)
+		}
+		if err := ensureUserOnlyDir(ccmodelDir); err != nil {
+			return fmt.Errorf("failed to create ccmodel directory: %v", err)
+		}
+	}
+	if err := ensureUserOnlyDir(sh.historyDir); err != nil {
 		return fmt.Errorf("failed to create switch history directory: %v", err)
 	}
 
@@ -144,10 +153,10 @@ func (sh *SwitchHistoryManager) writeToLogFile(entry *SwitchHistoryEntry) error 
 	}
 
 	// 使用文件锁确保并发安全
-	quotaHistoryManager := getQuotaHistoryManager()
-	return quotaHistoryManager.withFileLock(lockFile, func() error {
+	lockManager := &QuotaHistoryManager{}
+	return lockManager.withFileLock(lockFile, func() error {
 		// 追加到文件（如果不存在则创建）
-		file, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		file, err := openUserOnlyAppendFile(filename)
 		if err != nil {
 			return fmt.Errorf("failed to open switch log file: %v", err)
 		}

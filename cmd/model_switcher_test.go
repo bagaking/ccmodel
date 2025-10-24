@@ -413,14 +413,17 @@ func TestSwitchModel_BackupPreservesRawCurrentConfig(t *testing.T) {
 	if len(entries) != 1 {
 		t.Fatalf("os.ReadDir(%q) entries = %d, want 1", backupDir, len(entries))
 	}
+	assertMode(t, backupDir, userOnlyDirMode)
 
-	backupData, err := os.ReadFile(filepath.Join(backupDir, entries[0].Name()))
+	backupFile := filepath.Join(backupDir, entries[0].Name())
+	backupData, err := os.ReadFile(backupFile)
 	if err != nil {
 		t.Fatalf("os.ReadFile(%q) error = %v, want nil", entries[0].Name(), err)
 	}
 	if string(backupData) != string(currentConfig) {
 		t.Errorf("switchModel(%q) backup = %q, want %q", "target", backupData, currentConfig)
 	}
+	assertMode(t, backupFile, userOnlyFileMode)
 
 	activeData, err := os.ReadFile(filepath.Join(tempDir, "settings.json"))
 	if err != nil {
@@ -429,4 +432,5 @@ func TestSwitchModel_BackupPreservesRawCurrentConfig(t *testing.T) {
 	if strings.Contains(string(activeData), "__cc") {
 		t.Errorf("switchModel(%q) active config = %q, want quota fields removed", "target", activeData)
 	}
+	assertMode(t, filepath.Join(tempDir, "settings.json"), userOnlyFileMode)
 }
