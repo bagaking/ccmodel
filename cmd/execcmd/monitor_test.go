@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -77,5 +78,33 @@ func TestStatusCommandOutputsSessionJSON(t *testing.T) {
 	}
 	if session.Windows[0].Name != "codex" {
 		t.Errorf("window.name = %q, want %q", session.Windows[0].Name, "codex")
+	}
+}
+
+func TestStatusLogsJSONReturnsUnsupportedScopeError(t *testing.T) {
+	r := newRunner(Dependencies{
+		ConfigDir: func() string { return t.TempDir() },
+		GetCurrentModel: func() (string, error) {
+			return "codex-test", nil
+		},
+		FileChecksum: func(string) (string, error) {
+			return "", nil
+		},
+		LookPath: func(string) (string, error) {
+			return "", os.ErrNotExist
+		},
+	})
+
+	cmd := r.buildStatusCommand()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"logs", "--json"})
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("status logs --json error = nil, want unsupported scope error")
+	}
+	if !strings.Contains(err.Error(), "status logs does not support --json") {
+		t.Fatalf("status logs --json error = %v, want unsupported scope error", err)
 	}
 }
