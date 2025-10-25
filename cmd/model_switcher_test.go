@@ -533,13 +533,12 @@ func setupSwitchModelTempHome(t *testing.T) string {
 	previousApp := app
 	previousVerbose := verbose
 	previousSwitchHistoryManager := switchHistoryManager
-	previousSwitchHistoryOnce := switchHistoryOnce
 	t.Cleanup(func() {
 		configDir = previousConfigDir
 		app = previousApp
 		verbose = previousVerbose
 		switchHistoryManager = previousSwitchHistoryManager
-		switchHistoryOnce = previousSwitchHistoryOnce
+		resetSwitchHistoryOnceForTest()
 	})
 
 	t.Setenv("HOME", tempHome)
@@ -547,11 +546,15 @@ func setupSwitchModelTempHome(t *testing.T) string {
 	app = nil
 	verbose = false
 	switchHistoryManager = nil
-	switchHistoryOnce = sync.Once{}
+	resetSwitchHistoryOnceForTest()
 	initConfig()
 
 	if configDir != claudeDir {
 		t.Fatalf("configDir = %q, want temp HOME config dir %q", configDir, claudeDir)
 	}
 	return claudeDir
+}
+
+func resetSwitchHistoryOnceForTest() {
+	switchHistoryOnce = sync.Once{}
 }
