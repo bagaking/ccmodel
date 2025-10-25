@@ -520,6 +520,77 @@ func TestSwitchModel_MissingModelDoesNotOverwriteCurrentConfig(t *testing.T) {
 	assertOnlyEntryMode(t, switchHistoryDir, ".jsonl", userOnlyFileMode)
 }
 
+func TestSwitchModel_MissingModelErrorListsAvailableCandidates(t *testing.T) {
+	claudeDir := setupSwitchModelTempHome(t)
+
+	currentConfig := []byte(`{"model":"baseline"}`)
+	if err := os.WriteFile(filepath.Join(claudeDir, "settings.json"), currentConfig, 0o644); err != nil {
+		t.Fatalf("os.WriteFile(settings.json) error = %v, want nil", err)
+	}
+	for _, name := range []string{"settings.alpha.json", "settings.zeta.json"} {
+		if err := os.WriteFile(filepath.Join(claudeDir, name), []byte(`{}`), 0o644); err != nil {
+			t.Fatalf("os.WriteFile(%q) error = %v, want nil", name, err)
+		}
+	}
+
+	err := switchModel("missing")
+	if err == nil {
+		t.Fatalf("switchModel(%q) error = nil, want missing model error", "missing")
+	}
+	for _, want := range []string{`model "missing" not found`, "available models: alpha, zeta", "settings.<model>.json"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("switchModel(%q) error = %q, want substring %q", "missing", err.Error(), want)
+		}
+	}
+
+	activeData, err := os.ReadFile(filepath.Join(claudeDir, "settings.json"))
+	if err != nil {
+		t.Fatalf("os.ReadFile(settings.json) error = %v, want nil", err)
+	}
+	if string(activeData) != string(currentConfig) {
+		t.Errorf("settings.json after failed switch = %q, want original %q", activeData, currentConfig)
+	}
+}
+
+func TestSwitchModel_PathLikeModelDoesNotReadOutsideConfigDir(t *testing.T) {
+	claudeDir := setupSwitchModelTempHome(t)
+	homeDir := filepath.Dir(claudeDir)
+
+	currentConfig := []byte(`{"model":"baseline"}`)
+	if err := os.WriteFile(filepath.Join(claudeDir, "settings.json"), currentConfig, 0o644); err != nil {
+		t.Fatalf("os.WriteFile(settings.json) error = %v, want nil", err)
+	}
+	if err := os.Mkdir(filepath.Join(claudeDir, "settings.x"), 0o755); err != nil {
+		t.Fatalf("os.Mkdir(settings.x) error = %v, want nil", err)
+	}
+	escapedConfig := []byte(`{"model":"escaped"}`)
+	if err := os.WriteFile(filepath.Join(homeDir, "settings.evil.json"), escapedConfig, 0o644); err != nil {
+		t.Fatalf("os.WriteFile(settings.evil.json) error = %v, want nil", err)
+	}
+
+	model := "x/../../settings.evil"
+	err := switchModel(model)
+	if err == nil {
+		t.Fatalf("switchModel(%q) error = nil, want missing model error", model)
+	}
+	if !strings.Contains(err.Error(), `model "x/../../settings.evil" not found`) {
+		t.Errorf("switchModel(%q) error = %q, want missing model boundary error", model, err.Error())
+	}
+
+	activeData, err := os.ReadFile(filepath.Join(claudeDir, "settings.json"))
+	if err != nil {
+		t.Fatalf("os.ReadFile(settings.json) error = %v, want nil", err)
+	}
+	if string(activeData) != string(currentConfig) {
+		t.Errorf("settings.json after path-like switch = %q, want original %q", activeData, currentConfig)
+	}
+
+	backupDir := filepath.Join(claudeDir, "ccmodel", "backups")
+	if _, err := os.Stat(backupDir); !os.IsNotExist(err) {
+		t.Fatalf("os.Stat(%q) error = %v, want not exist", backupDir, err)
+	}
+}
+
 func setupSwitchModelTempHome(t *testing.T) string {
 	t.Helper()
 

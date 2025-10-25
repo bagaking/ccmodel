@@ -3,9 +3,11 @@ package cmd
 import (
 	"crypto/md5"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/bagaking/cmdux/ui"
@@ -45,23 +47,22 @@ func switchModel(model string) error {
 		}
 	}()
 
-	sourceFile := filepath.Join(configDir, fmt.Sprintf("settings.%s.json", model))
-	targetFile := filepath.Join(configDir, "settings.json")
-	// 将backup目录统一放在ccmodel目录下，便于集中管理
-	backupDir := filepath.Join(configDir, "ccmodel", "backups")
-
-	// Check if source file exists
-	if _, err := os.Stat(sourceFile); os.IsNotExist(err) {
-		switchError = fmt.Errorf("configuration for model '%s' not found: %s", model, sourceFile)
+	sourceFile, err := resolveSwitchModelPath(model)
+	if err != nil {
+		switchError = err
 		errorBox := ui.NewBox().
 			Title("❌ Model Not Found").
-			Content(fmt.Sprintf("Configuration for model '%s' not found: %s", model, sourceFile)).
+			Content(err.Error()).
 			TitleStyle(app.Theme().Error).
 			ContentStyle(app.Theme().Error).
 			BorderStyle(app.Theme().Error)
 		app.Render(errorBox)
 		return switchError
 	}
+
+	targetFile := filepath.Join(configDir, "settings.json")
+	// 将backup目录统一放在ccmodel目录下，便于集中管理
+	backupDir := filepath.Join(configDir, "ccmodel", "backups")
 
 	// Show loading with cmdux Spinner
 	spinner := ux.NewSpinner(ux.SpinnerDots).Color(app.Theme().Primary)
@@ -124,6 +125,38 @@ func switchModel(model string) error {
 	}
 
 	return nil
+}
+
+func resolveSwitchModelPath(model string) (string, error) {
+	availableModels, err := getAvailableModels()
+	if err != nil {
+		return "", fmt.Errorf("failed to list model configurations: %v", err)
+	}
+
+	for _, availableModel := range availableModels {
+		if availableModel == model {
+			return filepath.Join(configDir, fmt.Sprintf("settings.%s.json", availableModel)), nil
+		}
+	}
+
+	return "", errors.New(formatMissingSwitchModelError(model, availableModels))
+}
+
+func formatMissingSwitchModelError(model string, availableModels []string) string {
+	modelNameHint := "model names must match the <model> portion of settings.<model>.json"
+	if len(availableModels) == 0 {
+		return fmt.Sprintf("model %q not found; no settings.<model>.json candidates are available; %s", model, modelNameHint)
+	}
+
+	const maxSuggestions = 8
+	suggestions := availableModels
+	more := ""
+	if len(suggestions) > maxSuggestions {
+		suggestions = suggestions[:maxSuggestions]
+		more = fmt.Sprintf(" (%d more)", len(availableModels)-maxSuggestions)
+	}
+
+	return fmt.Sprintf("model %q not found; available models: %s%s; %s", model, strings.Join(suggestions, ", "), more, modelNameHint)
 }
 
 func copyFile(src, dst string) error {

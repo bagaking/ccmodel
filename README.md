@@ -48,6 +48,8 @@ your user account.
 `ccmodel` has a narrow filesystem contract:
 
 - model candidates are `settings.<model>.json` files under `$HOME/.claude/`
+- model names are exact candidate names, not paths; `ccmodel switch <model>`
+  only selects a model already listed from `settings.<model>.json`
 - the active Claude Code configuration is `$HOME/.claude/settings.json`
 - switching removes ccmodel-only macro fields `__cc` and `__ccmodel` before
   writing the active config
