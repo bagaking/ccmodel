@@ -1,10 +1,12 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -376,20 +378,7 @@ func TestSwitchCommand_Execute_Success(t *testing.T) {
 }
 
 func TestSwitchModel_BackupPreservesRawCurrentConfig(t *testing.T) {
-	tempDir := t.TempDir()
-	previousConfigDir := configDir
-	previousApp := app
-	previousVerbose := verbose
-	t.Cleanup(func() {
-		configDir = previousConfigDir
-		app = previousApp
-		verbose = previousVerbose
-	})
-
-	configDir = tempDir
-	app = nil
-	verbose = false
-	initConfig()
+	tempDir := setupSwitchModelTempHome(t)
 
 	currentConfig := []byte("{invalid json with __cc that must stay in backup")
 	if err := os.WriteFile(filepath.Join(tempDir, "settings.json"), currentConfig, 0644); err != nil {
@@ -433,4 +422,136 @@ func TestSwitchModel_BackupPreservesRawCurrentConfig(t *testing.T) {
 		t.Errorf("switchModel(%q) active config = %q, want quota fields removed", "target", activeData)
 	}
 	assertMode(t, filepath.Join(tempDir, "settings.json"), userOnlyFileMode)
+}
+
+func TestSwitchModel_UsesTemporaryHomeAndStripsMacroFields(t *testing.T) {
+	claudeDir := setupSwitchModelTempHome(t)
+	homeDir := filepath.Dir(claudeDir)
+
+	currentConfig := []byte(`{"model":"baseline","env":{"TOKEN":"old"}}`)
+	if err := os.WriteFile(filepath.Join(claudeDir, "settings.json"), currentConfig, 0o644); err != nil {
+		t.Fatalf("os.WriteFile(settings.json) error = %v, want nil", err)
+	}
+	candidateConfig := []byte(`{
+  "model": "target",
+  "env": {"ANTHROPIC_MODEL": "claude-sonnet"},
+  "__cc": {"quota": "removed"},
+  "__ccmodel": {"quota": "also removed"}
+}`)
+	if err := os.WriteFile(filepath.Join(claudeDir, "settings.target.json"), candidateConfig, 0o644); err != nil {
+		t.Fatalf("os.WriteFile(settings.target.json) error = %v, want nil", err)
+	}
+
+	if err := switchModel("target"); err != nil {
+		t.Fatalf("switchModel(%q) error = %v, want nil", "target", err)
+	}
+
+	activePath := filepath.Join(claudeDir, "settings.json")
+	activeData, err := os.ReadFile(activePath)
+	if err != nil {
+		t.Fatalf("os.ReadFile(settings.json) error = %v, want nil", err)
+	}
+	var active map[string]any
+	if err := json.Unmarshal(activeData, &active); err != nil {
+		t.Fatalf("json.Unmarshal(settings.json) error = %v, want nil", err)
+	}
+	if _, exists := active["__cc"]; exists {
+		t.Errorf("settings.json contains __cc after switch: %s", activeData)
+	}
+	if _, exists := active["__ccmodel"]; exists {
+		t.Errorf("settings.json contains __ccmodel after switch: %s", activeData)
+	}
+	if active["model"] != "target" {
+		t.Errorf("settings.json model = %v, want target", active["model"])
+	}
+	assertMode(t, activePath, userOnlyFileMode)
+	assertMode(t, claudeDir, userOnlyDirMode)
+
+	backupDir := filepath.Join(claudeDir, "ccmodel", "backups")
+	backupEntries, err := os.ReadDir(backupDir)
+	if err != nil {
+		t.Fatalf("os.ReadDir(%q) error = %v, want nil", backupDir, err)
+	}
+	if len(backupEntries) != 1 {
+		t.Fatalf("os.ReadDir(%q) entries = %d, want 1", backupDir, len(backupEntries))
+	}
+	backupPath := filepath.Join(backupDir, backupEntries[0].Name())
+	backupData, err := os.ReadFile(backupPath)
+	if err != nil {
+		t.Fatalf("os.ReadFile(%q) error = %v, want nil", backupPath, err)
+	}
+	if string(backupData) != string(currentConfig) {
+		t.Errorf("backup data = %q, want original current config %q", backupData, currentConfig)
+	}
+	assertMode(t, backupDir, userOnlyDirMode)
+	assertMode(t, backupPath, userOnlyFileMode)
+
+	switchHistoryDir := filepath.Join(homeDir, ".claude", "ccmodel", "switch_history")
+	assertMode(t, switchHistoryDir, userOnlyDirMode)
+	assertOnlyEntryMode(t, switchHistoryDir, ".jsonl", userOnlyFileMode)
+}
+
+func TestSwitchModel_MissingModelDoesNotOverwriteCurrentConfig(t *testing.T) {
+	claudeDir := setupSwitchModelTempHome(t)
+
+	currentConfig := []byte(`{"model":"baseline","env":{"TOKEN":"old"}}`)
+	if err := os.WriteFile(filepath.Join(claudeDir, "settings.json"), currentConfig, 0o644); err != nil {
+		t.Fatalf("os.WriteFile(settings.json) error = %v, want nil", err)
+	}
+
+	if err := switchModel("missing"); err == nil {
+		t.Fatalf("switchModel(%q) error = nil, want error", "missing")
+	}
+
+	activeData, err := os.ReadFile(filepath.Join(claudeDir, "settings.json"))
+	if err != nil {
+		t.Fatalf("os.ReadFile(settings.json) error = %v, want nil", err)
+	}
+	if string(activeData) != string(currentConfig) {
+		t.Errorf("settings.json after failed switch = %q, want original %q", activeData, currentConfig)
+	}
+
+	backupDir := filepath.Join(claudeDir, "ccmodel", "backups")
+	if _, err := os.Stat(backupDir); !os.IsNotExist(err) {
+		t.Fatalf("os.Stat(%q) error = %v, want not exist", backupDir, err)
+	}
+	switchHistoryDir := filepath.Join(claudeDir, "ccmodel", "switch_history")
+	assertMode(t, switchHistoryDir, userOnlyDirMode)
+	assertOnlyEntryMode(t, switchHistoryDir, ".jsonl", userOnlyFileMode)
+}
+
+func setupSwitchModelTempHome(t *testing.T) string {
+	t.Helper()
+
+	tempHome := t.TempDir()
+	claudeDir := filepath.Join(tempHome, ".claude")
+	if err := os.Mkdir(claudeDir, 0o700); err != nil {
+		t.Fatalf("os.Mkdir(%q) error = %v, want nil", claudeDir, err)
+	}
+
+	previousConfigDir := configDir
+	previousApp := app
+	previousVerbose := verbose
+	previousSwitchHistoryManager := switchHistoryManager
+	previousSwitchHistoryOnce := switchHistoryOnce
+	t.Cleanup(func() {
+		configDir = previousConfigDir
+		app = previousApp
+		verbose = previousVerbose
+		switchHistoryManager = previousSwitchHistoryManager
+		switchHistoryOnce = previousSwitchHistoryOnce
+	})
+
+	t.Setenv("HOME", tempHome)
+	configDir = ""
+	app = nil
+	verbose = false
+	switchHistoryManager = nil
+	switchHistoryOnce = sync.Once{}
+	initConfig()
+
+	if configDir != claudeDir {
+		t.Fatalf("configDir = %q, want temp HOME config dir %q", configDir, claudeDir)
+	}
+	return claudeDir
 }
