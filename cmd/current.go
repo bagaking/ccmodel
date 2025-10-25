@@ -99,7 +99,7 @@ func (msc *ModelStatusCollector) collectFileInfo(status *ModelStatus) error {
 	}
 
 	status.FileSize = info.Size()
-	status.LastModified = info.ModTime().Format("2006-01-02T15:04:05Z")
+	status.LastModified = info.ModTime().UTC().Format(time.RFC3339)
 	return nil
 }
 

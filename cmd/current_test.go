@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestModelStatusCollector_Basic(t *testing.T) {
@@ -19,12 +20,21 @@ func TestModelStatusCollector_Basic(t *testing.T) {
 func TestModelStatusCollector_collectFileInfo(t *testing.T) {
 	tempDir := t.TempDir()
 	configFile := filepath.Join(tempDir, "settings.json")
+	modTime := time.Date(2025, time.September, 8, 8, 42, 27, 0, time.FixedZone("CST", 8*60*60))
+	oldLocal := time.Local
+	time.Local = modTime.Location()
+	t.Cleanup(func() {
+		time.Local = oldLocal
+	})
 
 	// 创建测试配置文件
 	testConfig := `{"test": "config"}`
 	err := os.WriteFile(configFile, []byte(testConfig), 0644)
 	if err != nil {
 		t.Fatalf("Failed to create test config: %v", err)
+	}
+	if err := os.Chtimes(configFile, modTime, modTime); err != nil {
+		t.Fatalf("os.Chtimes(%q) error = %v, want nil", configFile, err)
 	}
 
 	collector := NewModelStatusCollector(tempDir)
@@ -48,9 +58,9 @@ func TestModelStatusCollector_collectFileInfo(t *testing.T) {
 		t.Error("Expected LastModified to be set")
 	}
 
-	// 验证 ISO 时间格式
-	if len(status.LastModified) != len("2006-01-02T15:04:05Z") {
-		t.Errorf("Expected ISO timestamp format, got: %s", status.LastModified)
+	wantLastModified := "2025-09-08T00:42:27Z"
+	if status.LastModified != wantLastModified {
+		t.Errorf("collectFileInfo(%q) LastModified = %s, want %s", configFile, status.LastModified, wantLastModified)
 	}
 }
 
