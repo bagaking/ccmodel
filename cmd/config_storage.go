@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 )
 
@@ -148,6 +149,7 @@ func (fcs *FileConfigStorage) ListAvailableModels() ([]string, error) {
 		}
 	}
 
+	sort.Strings(models)
 	return models, nil
 }
 

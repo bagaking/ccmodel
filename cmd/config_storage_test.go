@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -263,53 +262,66 @@ func TestFileConfigStorage_GetActiveModel_NoActiveConfig(t *testing.T) {
 
 // TestFileConfigStorage_ListAvailableModels 测试列出可用模型
 func TestFileConfigStorage_ListAvailableModels(t *testing.T) {
-	tempDir, err := os.MkdirTemp("", "config_test_")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
-
-	mockLogger := &MockLogger{}
-	mockLockManager := &MockFileLockManager{}
-	storage := NewFileConfigStorage(tempDir, mockLockManager, mockLogger)
-
-	// 创建多个模型配置文件
-	modelNames := []string{"model1", "model2", "model3"}
-	for _, name := range modelNames {
-		configFile := filepath.Join(tempDir, fmt.Sprintf("settings.%s.json", name))
-		err = os.WriteFile(configFile, []byte(`{}`), 0644)
-		if err != nil {
-			t.Fatalf("Failed to create config file for %s: %v", name, err)
-		}
-	}
-
-	// 创建一些非模型文件（应该被忽略）
-	os.WriteFile(filepath.Join(tempDir, "other.txt"), []byte("test"), 0644)
-	os.WriteFile(filepath.Join(tempDir, "settings.json"), []byte("{}"), 0644) // 活动配置，应该被忽略
-
-	// 列出可用模型
-	availableModels, err := storage.ListAvailableModels()
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
+	tests := []struct {
+		name       string
+		files      []string
+		wantModels []string
+	}{
+		{
+			name: "filters candidates and sorts model names",
+			files: []string{
+				"settings.zeta.json",
+				"settings.alpha.json",
+				"settings.beta.json",
+				"settings.json",
+				"other.txt",
+			},
+			wantModels: []string{"alpha", "beta", "zeta"},
+		},
+		{
+			name: "ignores directories and empty model names",
+			files: []string{
+				"settings.delta.json",
+				"settings..json",
+				"settings.gamma.json",
+				filepath.Join("settings.nested.json", "ignored"),
+			},
+			wantModels: []string{"delta", "gamma"},
+		},
 	}
 
-	// 验证返回的模型列表
-	if len(availableModels) != len(modelNames) {
-		t.Errorf("Expected %d models, got %d", len(modelNames), len(availableModels))
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+			mockLogger := &MockLogger{}
+			mockLockManager := &MockFileLockManager{}
+			storage := NewFileConfigStorage(tempDir, mockLockManager, mockLogger)
 
-	// 验证所有期望的模型都在列表中
-	for _, expectedModel := range modelNames {
-		found := false
-		for _, actualModel := range availableModels {
-			if actualModel == expectedModel {
-				found = true
-				break
+			for _, name := range tt.files {
+				path := filepath.Join(tempDir, name)
+				if filepath.Base(name) == "ignored" {
+					if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+						t.Fatalf("os.MkdirAll(%q) error = %v, want nil", filepath.Dir(path), err)
+					}
+				}
+				if err := os.WriteFile(path, []byte(`{}`), 0o644); err != nil {
+					t.Fatalf("os.WriteFile(%q) error = %v, want nil", path, err)
+				}
 			}
-		}
-		if !found {
-			t.Errorf("Expected model %s not found in available models", expectedModel)
-		}
+
+			gotModels, err := storage.ListAvailableModels()
+			if err != nil {
+				t.Fatalf("ListAvailableModels() error = %v, want nil", err)
+			}
+			if len(gotModels) != len(tt.wantModels) {
+				t.Fatalf("ListAvailableModels() = %v, want %v", gotModels, tt.wantModels)
+			}
+			for i, want := range tt.wantModels {
+				if got := gotModels[i]; got != want {
+					t.Errorf("ListAvailableModels()[%d] = %q, want %q; full result = %v", i, got, want, gotModels)
+				}
+			}
+		})
 	}
 }
 
