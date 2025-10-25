@@ -3,10 +3,10 @@ package cmd
 import (
 	"crypto/md5"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"time"
 )
 
@@ -31,10 +31,13 @@ func NewFileConfigStorage(configDir string, lockManager FileLockManager, logger 
 
 // LoadModel 加载指定模型的配置
 func (fcs *FileConfigStorage) LoadModel(modelName string) ([]byte, error) {
-	sourceFile := filepath.Join(fcs.configDir, fmt.Sprintf("settings.%s.json", modelName))
-
-	if _, err := os.Stat(sourceFile); os.IsNotExist(err) {
-		return nil, fmt.Errorf("model '%s' configuration not found: %s", modelName, sourceFile)
+	sourceFile, err := resolveModelCandidatePath(fcs.configDir, modelName)
+	if err != nil {
+		var notFound *modelCandidateNotFoundError
+		if !errors.As(err, &notFound) {
+			return nil, fmt.Errorf("failed to resolve model config: %v", err)
+		}
+		return nil, fmt.Errorf("model '%s' configuration not found", modelName)
 	}
 
 	data, err := os.ReadFile(sourceFile)
@@ -116,7 +119,10 @@ func (fcs *FileConfigStorage) GetActiveModel() (string, error) {
 	}
 
 	for _, model := range models {
-		modelFile := filepath.Join(fcs.configDir, fmt.Sprintf("settings.%s.json", model))
+		modelFile, err := resolveModelCandidatePath(fcs.configDir, model)
+		if err != nil {
+			continue
+		}
 		modelSum, err := fcs.calculateConfigChecksum(modelFile)
 		if err == nil && currentSum == modelSum {
 			return model, nil
@@ -128,29 +134,12 @@ func (fcs *FileConfigStorage) GetActiveModel() (string, error) {
 
 // ListAvailableModels 列出所有可用模型
 func (fcs *FileConfigStorage) ListAvailableModels() ([]string, error) {
-	files, err := os.ReadDir(fcs.configDir)
+	candidates, err := listModelCandidates(fcs.configDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read config directory: %v", err)
 	}
 
-	var models []string
-	for _, file := range files {
-		if file.IsDir() {
-			continue
-		}
-
-		name := file.Name()
-		// 匹配 settings.*.json 格式
-		if len(name) > 13 && name[:9] == "settings." && name[len(name)-5:] == ".json" {
-			modelName := name[9 : len(name)-5] // 提取中间部分
-			if modelName != "" {
-				models = append(models, modelName)
-			}
-		}
-	}
-
-	sort.Strings(models)
-	return models, nil
+	return modelCandidateNames(candidates), nil
 }
 
 // cleanConfigData 清理配置数据，移除quota相关字段

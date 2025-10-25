@@ -72,22 +72,15 @@ func runRoot(cmd *cobra.Command, args []string) error {
 }
 
 func getAvailableModels() ([]string, error) {
-	pattern := filepath.Join(configDir, "settings.*.json")
-	files, err := filepath.Glob(pattern)
+	candidates, err := listModelCandidates(configDir)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return []string{}, nil
+		}
 		return nil, err
 	}
 
-	models := []string{}
-	for _, file := range files {
-		model := extractModelName(file)
-		if model != "" && model != "json" {
-			models = append(models, model)
-		}
-	}
-
-	sort.Strings(models)
-	return models, nil
+	return modelCandidateNames(candidates), nil
 }
 
 func extractModelName(filename string) string {
@@ -100,4 +93,86 @@ func extractModelName(filename string) string {
 	// Remove "settings." prefix and ".json" suffix
 	model := base[len("settings.") : len(base)-len(".json")]
 	return model
+}
+
+type modelCandidate struct {
+	Name string
+	Path string
+}
+
+type modelCandidateNotFoundError struct {
+	model           string
+	availableModels []string
+}
+
+func (e *modelCandidateNotFoundError) Error() string {
+	return "model candidate not found"
+}
+
+func (e *modelCandidateNotFoundError) AvailableModels() []string {
+	return append([]string(nil), e.availableModels...)
+}
+
+func listModelCandidates(dir string) ([]modelCandidate, error) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+
+	candidates := []modelCandidate{}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+
+		info, err := entry.Info()
+		if err != nil || !info.Mode().IsRegular() {
+			continue
+		}
+
+		name := entry.Name()
+		model := extractModelName(name)
+		if model == "" || model == "json" {
+			continue
+		}
+
+		candidates = append(candidates, modelCandidate{
+			Name: model,
+			Path: filepath.Join(dir, name),
+		})
+	}
+
+	sort.Slice(candidates, func(i, j int) bool {
+		return candidates[i].Name < candidates[j].Name
+	})
+	return candidates, nil
+}
+
+func modelCandidateNames(candidates []modelCandidate) []string {
+	models := make([]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		models = append(models, candidate.Name)
+	}
+	return models
+}
+
+func resolveModelCandidatePath(dir, model string) (string, error) {
+	candidates, err := listModelCandidates(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", &modelCandidateNotFoundError{model: model}
+		}
+		return "", err
+	}
+
+	for _, candidate := range candidates {
+		if candidate.Name == model {
+			return candidate.Path, nil
+		}
+	}
+
+	return "", &modelCandidateNotFoundError{
+		model:           model,
+		availableModels: modelCandidateNames(candidates),
+	}
 }

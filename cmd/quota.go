@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
@@ -316,6 +315,11 @@ func getQuotaInfoWithTimeout(timeout time.Duration) (*QuotaInfo, error) {
 
 // getQuotaInfoForModel retrieves quota information for a specific model with collaboration
 func getQuotaInfoForModel(modelName string, timeout time.Duration) (*QuotaInfo, error) {
+	configFile, err := resolveModelCandidatePath(configDir, modelName)
+	if err != nil {
+		return nil, err
+	}
+
 	// Try to get recent data from history first (collaboration mechanism)
 	historyManager := getQuotaHistoryManager()
 
@@ -342,8 +346,6 @@ func getQuotaInfoForModel(modelName string, timeout time.Duration) (*QuotaInfo, 
 		}
 	}
 	quotaCacheMux.RUnlock()
-
-	configFile := filepath.Join(configDir, fmt.Sprintf("settings.%s.json", modelName))
 
 	// Read raw config JSON
 	configData, err := os.ReadFile(configFile)

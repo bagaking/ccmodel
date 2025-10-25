@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"sync"
 	"time"
 
@@ -113,7 +112,10 @@ ccmodel --help       → Show detailed help`
 	wg.Wait()
 
 	for i, model := range models {
-		modelFile := filepath.Join(configDir, fmt.Sprintf("settings.%s.json", model))
+		modelFile, err := resolveModelCandidatePath(configDir, model)
+		if err != nil {
+			continue
+		}
 		info, err := os.Stat(modelFile)
 		if err != nil {
 			continue

@@ -128,18 +128,16 @@ func switchModel(model string) error {
 }
 
 func resolveSwitchModelPath(model string) (string, error) {
-	availableModels, err := getAvailableModels()
+	path, err := resolveModelCandidatePath(configDir, model)
 	if err != nil {
+		var notFound *modelCandidateNotFoundError
+		if errors.As(err, &notFound) {
+			return "", errors.New(formatMissingSwitchModelError(model, notFound.AvailableModels()))
+		}
 		return "", fmt.Errorf("failed to list model configurations: %v", err)
 	}
 
-	for _, availableModel := range availableModels {
-		if availableModel == model {
-			return filepath.Join(configDir, fmt.Sprintf("settings.%s.json", availableModel)), nil
-		}
-	}
-
-	return "", errors.New(formatMissingSwitchModelError(model, availableModels))
+	return path, nil
 }
 
 func formatMissingSwitchModelError(model string, availableModels []string) string {
@@ -214,7 +212,10 @@ func getCurrentModel() (string, error) {
 	}
 
 	for _, model := range models {
-		modelFile := filepath.Join(configDir, fmt.Sprintf("settings.%s.json", model))
+		modelFile, err := resolveModelCandidatePath(configDir, model)
+		if err != nil {
+			continue
+		}
 		modelSum, err := fileChecksum(modelFile)
 		if err == nil && currentSum == modelSum {
 			return model, nil

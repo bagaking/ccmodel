@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -75,6 +76,32 @@ func TestFileConfigStorage_LoadModel_NotFound(t *testing.T) {
 	// 验证返回错误
 	if err == nil {
 		t.Error("Expected error for nonexistent model, got nil")
+	}
+}
+
+func TestFileConfigStorage_LoadModel_PathLikeModelDoesNotReadOutsideConfigDir(t *testing.T) {
+	tempDir := t.TempDir()
+	parentDir := filepath.Dir(tempDir)
+	mockLogger := &MockLogger{}
+	mockLockManager := &MockFileLockManager{}
+	storage := NewFileConfigStorage(tempDir, mockLockManager, mockLogger)
+
+	if err := os.Mkdir(filepath.Join(tempDir, "settings.x"), 0o755); err != nil {
+		t.Fatalf("os.Mkdir(settings.x) error = %v, want nil", err)
+	}
+	escapedConfig := []byte(`{"model":"escaped"}`)
+	escapedPath := filepath.Join(parentDir, "settings.evil.json")
+	if err := os.WriteFile(escapedPath, escapedConfig, 0o644); err != nil {
+		t.Fatalf("os.WriteFile(%q) error = %v, want nil", escapedPath, err)
+	}
+
+	model := "x/../../settings.evil"
+	got, err := storage.LoadModel(model)
+	if err == nil {
+		t.Fatalf("LoadModel(%q) error = nil, got data %q, want error", model, got)
+	}
+	if !strings.Contains(err.Error(), "configuration not found") {
+		t.Errorf("LoadModel(%q) error = %q, want not found error", model, err.Error())
 	}
 }
 

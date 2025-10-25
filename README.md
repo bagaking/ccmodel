@@ -59,9 +59,9 @@ your user account.
 - switch history, quota history, and proxy exec session records are stored under
   `$HOME/.claude/ccmodel/`
 
-`list`, `current`, and `switch` do not need network access unless a candidate
-file declares a quota macro. Quota macros may call the configured HTTP endpoint
-when `list`, `current`, or `top` asks for quota data.
+`switch` does not use network access. `list`, `current`, and `top` may call a
+configured quota endpoint when they ask for quota data from a candidate file
+that declares a quota macro.
 
 ## Quick start
 
