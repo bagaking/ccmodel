@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -9,7 +10,9 @@ import (
 
 func TestDefaultConfigDirUsesUserHomeDir(t *testing.T) {
 	tempHome := t.TempDir()
-	t.Setenv("HOME", tempHome)
+	withUserHomeDir(t, func() (string, error) {
+		return tempHome, nil
+	})
 
 	got, err := defaultConfigDir()
 	if err != nil {
@@ -23,7 +26,9 @@ func TestDefaultConfigDirUsesUserHomeDir(t *testing.T) {
 }
 
 func TestDefaultConfigDirRejectsEmptyHome(t *testing.T) {
-	t.Setenv("HOME", "")
+	withUserHomeDir(t, func() (string, error) {
+		return "", nil
+	})
 
 	got, err := defaultConfigDir()
 	if err == nil {
@@ -41,13 +46,9 @@ func TestDefaultConfigDirRejectsEmptyHome(t *testing.T) {
 }
 
 func TestDefaultConfigDirReturnsHomeResolutionError(t *testing.T) {
-	previousUserHomeDir := userHomeDir
-	t.Cleanup(func() {
-		userHomeDir = previousUserHomeDir
-	})
-	userHomeDir = func() (string, error) {
+	withUserHomeDir(t, func() (string, error) {
 		return "", errors.New("home lookup failed")
-	}
+	})
 
 	got, err := defaultConfigDir()
 	if err == nil {
@@ -64,33 +65,66 @@ func TestDefaultConfigDirReturnsHomeResolutionError(t *testing.T) {
 	}
 }
 
-func TestExecuteReturnsConfigInitErrorForEmptyHome(t *testing.T) {
-	previousConfigDir := configDir
-	previousConfigInitErr := configInitErr
-	previousApp := app
-	previousUserHomeDir := userHomeDir
-	previousArgs := rootCmd.Flags().Args()
-	previousSilenceUsage := rootCmd.SilenceUsage
-	previousSilenceErrors := rootCmd.SilenceErrors
-	t.Cleanup(func() {
-		configDir = previousConfigDir
-		configInitErr = previousConfigInitErr
-		app = previousApp
-		userHomeDir = previousUserHomeDir
-		rootCmd.SetArgs(previousArgs)
-		rootCmd.SetOut(nil)
-		rootCmd.SetErr(nil)
-		rootCmd.SilenceUsage = previousSilenceUsage
-		rootCmd.SilenceErrors = previousSilenceErrors
+func TestCompletionDoesNotRequireConfigInit(t *testing.T) {
+	restore := preserveRootState(t)
+	defer restore()
+
+	withUserHomeDir(t, func() (string, error) {
+		return "", nil
 	})
 
-	t.Setenv("HOME", "")
+	outputFile, err := os.CreateTemp(t.TempDir(), "completion-*.out")
+	if err != nil {
+		t.Fatalf("CreateTemp() error = %v", err)
+	}
+	defer outputFile.Close()
+
+	previousStdout := os.Stdout
+	os.Stdout = outputFile
+	t.Cleanup(func() {
+		os.Stdout = previousStdout
+	})
+
 	configDir = ""
 	configInitErr = nil
 	app = nil
-	userHomeDir = func() (string, error) {
-		return "", nil
+
+	rootCmd.SetArgs([]string{"completion", "bash"})
+	rootCmd.SilenceUsage = true
+	rootCmd.SilenceErrors = true
+
+	err = rootCmd.Execute()
+	if err != nil {
+		t.Fatalf("rootCmd.Execute() error = %v, want nil", err)
 	}
+	if configDir != "" {
+		t.Fatalf("configDir = %q, want empty string", configDir)
+	}
+	if configInitErr == nil {
+		t.Fatalf("configInitErr = nil, want recorded home resolution error")
+	}
+
+	data, err := os.ReadFile(outputFile.Name())
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	output := string(data)
+	if !strings.Contains(output, "ccmodel") || !strings.Contains(output, "completion") {
+		t.Fatalf("completion output missing expected content: %q", output)
+	}
+}
+
+func TestExecuteReturnsConfigInitErrorForEmptyHome(t *testing.T) {
+	restore := preserveRootState(t)
+	defer restore()
+
+	withUserHomeDir(t, func() (string, error) {
+		return "", nil
+	})
+
+	configDir = ""
+	configInitErr = nil
+	app = nil
 
 	rootCmd.SetArgs([]string{"list"})
 	rootCmd.SilenceUsage = true
@@ -108,5 +142,37 @@ func TestExecuteReturnsConfigInitErrorForEmptyHome(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "user home directory") {
 		t.Fatalf("rootCmd.Execute() error = %q, want clear home resolution error", err)
+	}
+}
+
+func withUserHomeDir(t *testing.T, fn func() (string, error)) {
+	t.Helper()
+
+	previousUserHomeDir := userHomeDir
+	t.Cleanup(func() {
+		userHomeDir = previousUserHomeDir
+	})
+	userHomeDir = fn
+}
+
+func preserveRootState(t *testing.T) func() {
+	t.Helper()
+
+	previousConfigDir := configDir
+	previousConfigInitErr := configInitErr
+	previousApp := app
+	previousArgs := rootCmd.Flags().Args()
+	previousSilenceUsage := rootCmd.SilenceUsage
+	previousSilenceErrors := rootCmd.SilenceErrors
+
+	return func() {
+		configDir = previousConfigDir
+		configInitErr = previousConfigInitErr
+		app = previousApp
+		rootCmd.SetArgs(previousArgs)
+		rootCmd.SetOut(nil)
+		rootCmd.SetErr(nil)
+		rootCmd.SilenceUsage = previousSilenceUsage
+		rootCmd.SilenceErrors = previousSilenceErrors
 	}
 }

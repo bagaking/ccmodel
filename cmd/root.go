@@ -43,7 +43,7 @@ func init() {
 	rootCmd.AddCommand(withConfigInit(currentCmd))
 	rootCmd.AddCommand(withConfigInit(switchCmd))
 	rootCmd.AddCommand(withConfigInit(backupCmd))
-	rootCmd.AddCommand(withConfigInit(completionCmd))
+	rootCmd.AddCommand(completionCmd)
 	rootCmd.AddCommand(withConfigInit(execcmd.NewCommand(execcmd.Dependencies{
 		ConfigDir:       func() string { return configDir },
 		Verbose:         func() bool { return verbose },
