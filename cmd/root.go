@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -11,9 +12,11 @@ import (
 )
 
 var (
-	configDir string
-	verbose   bool
-	app       *cmdux.App
+	configDir     string
+	configInitErr error
+	verbose       bool
+	app           *cmdux.App
+	userHomeDir   = os.UserHomeDir
 )
 
 var rootCmd = &cobra.Command{
@@ -36,30 +39,80 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "verbose output")
-	rootCmd.AddCommand(listCmd)
-	rootCmd.AddCommand(currentCmd)
-	rootCmd.AddCommand(switchCmd)
-	rootCmd.AddCommand(backupCmd)
-	rootCmd.AddCommand(completionCmd)
-	rootCmd.AddCommand(execcmd.NewCommand(execcmd.Dependencies{
+	rootCmd.AddCommand(withConfigInit(listCmd))
+	rootCmd.AddCommand(withConfigInit(currentCmd))
+	rootCmd.AddCommand(withConfigInit(switchCmd))
+	rootCmd.AddCommand(withConfigInit(backupCmd))
+	rootCmd.AddCommand(withConfigInit(completionCmd))
+	rootCmd.AddCommand(withConfigInit(execcmd.NewCommand(execcmd.Dependencies{
 		ConfigDir:       func() string { return configDir },
 		Verbose:         func() bool { return verbose },
 		GetCurrentModel: getCurrentModel,
 		FileChecksum:    fileChecksum,
-	}))
+	})))
 	// Note: demo command removed as requested
+}
+
+func withConfigInit(cmd *cobra.Command) *cobra.Command {
+	if cmd.Run != nil {
+		run := cmd.Run
+		cmd.Run = nil
+		cmd.RunE = func(cmd *cobra.Command, args []string) error {
+			if configInitErr != nil {
+				return configInitErr
+			}
+			run(cmd, args)
+			return nil
+		}
+	}
+	if cmd.RunE != nil {
+		runE := cmd.RunE
+		cmd.RunE = func(cmd *cobra.Command, args []string) error {
+			if configInitErr != nil {
+				return configInitErr
+			}
+			return runE(cmd, args)
+		}
+	}
+	for _, child := range cmd.Commands() {
+		withConfigInit(child)
+	}
+	return cmd
 }
 
 func initConfig() {
 	if configDir == "" {
-		configDir = filepath.Join(os.Getenv("HOME"), ".claude")
+		var err error
+		configDir, err = defaultConfigDir()
+		if err != nil {
+			configInitErr = err
+		} else {
+			configInitErr = nil
+		}
+	} else {
+		configInitErr = nil
 	}
 
 	// Initialize cmdux app
 	app = cmdux.New()
 }
 
+func defaultConfigDir() (string, error) {
+	home, err := userHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("resolve config directory: user home directory unavailable: %w", err)
+	}
+	if home == "" {
+		return "", fmt.Errorf("resolve config directory: user home directory is empty")
+	}
+	return filepath.Join(home, ".claude"), nil
+}
+
 func runRoot(cmd *cobra.Command, args []string) error {
+	if configInitErr != nil {
+		return configInitErr
+	}
+
 	// Check if we're being called for completion - avoid UI output
 	if cmd.CalledAs() == "completion" || (len(os.Args) > 1 && os.Args[1] == "completion") {
 		return nil
